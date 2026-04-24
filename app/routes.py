@@ -11,7 +11,8 @@ from fastapi.responses import StreamingResponse, JSONResponse
 from .models import (
     OpenAIRequest, OpenAIResponse, OpenAIChoice, OpenAIMessage,
     OpenAIDelta, OpenAIUsage, ParseCurlRequest, TestAccountRequest,
-    ParseUrlRequest, GenerateCodeRequest, AddAccountRequest
+    ParseUrlRequest, GenerateCodeRequest, AddAccountRequest,
+    OpenAIResponsesRequest
 )
 from .config import config_manager, MimoAccount
 from .mimo_client import MimoClient
@@ -135,6 +136,150 @@ async def chat_completions(
     except Exception as e:
         add_log("error", f"API错误: {str(e)[:100]}")
         raise HTTPException(status_code=500, detail={"error": {"message": str(e)}})
+
+
+@router.post("/v1/responses")
+@router.post("/responses")
+async def responses_api(
+    request: OpenAIResponsesRequest,
+    authorization: Optional[str] = Header(None)
+):
+    """OpenAI Responses API 兼容接口"""
+    
+    # 验证API Key
+    if not validate_api_key(authorization):
+        raise HTTPException(status_code=401, detail={"error": {"message": "invalid api key"}})
+
+    # 获取下一个Mimo账号
+    account = config_manager.get_next_account()
+    if not account:
+        raise HTTPException(status_code=503, detail={"error": {"message": "no mimo account"}})
+
+    # 解析input为messages格式
+    if isinstance(request.input, str):
+        query = request.input
+    else:
+        # 从消息数组提取最后的用户消息
+        query = ""
+        for msg in request.input:
+            if isinstance(msg, dict):
+                if msg.get("role") == "user":
+                    content = msg.get("content", "")
+                    if isinstance(content, list):
+                        query = " ".join([c.get("text", "") for c in content if isinstance(c, dict)])
+                    else:
+                        query = content
+
+    # 创建Mimo客户端
+    client = MimoClient(account)
+
+    # 获取模型
+    model = request.model.replace("gpt-", "").replace("4o", "mimo-v2.5-pro").replace("4", "mimo-v2.5-pro").replace("3.5", "mimo-v2-flash-studio")
+    if model not in MimoClient.AVAILABLE_MODELS:
+        model = "mimo-v2.5-pro"
+
+    # 流式响应
+    if request.stream:
+        return StreamingResponse(
+            stream_responses_response(client, query, model),
+            media_type="text/event-stream"
+        )
+
+    # 非流式响应
+    try:
+        start_time = time.time()
+        content, think_content, usage = await client.call_api(query, False, model)
+        elapsed = time.time() - start_time
+
+        prompt_tokens = usage.get("promptTokens", 0)
+        completion_tokens = usage.get("completionTokens", 0)
+
+        # 记录使用情况
+        tracker.record(
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            seconds=elapsed
+        )
+        add_log("success", f"[{model}] 输入:{prompt_tokens} 输出:{completion_tokens} 耗时:{elapsed:.1f}s")
+
+        # 如果有思考内容，拼接到回复前面
+        full_content = content
+        if think_content:
+            full_content = f"<think>{think_content}</think>\n{content}"
+
+        # Responses API 格式响应
+        response = {
+            "id": f"resp_{uuid.uuid4().hex[:24]}",
+            "object": "response",
+            "created_at": int(time.time()),
+            "model": model,
+            "output": [
+                {
+                    "type": "message",
+                    "id": f"msg_{uuid.uuid4().hex[:24]}",
+                    "role": "assistant",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": full_content
+                        }
+                    ]
+                }
+            ],
+            "usage": {
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "total_tokens": prompt_tokens + completion_tokens
+            }
+        }
+
+        return response
+
+    except Exception as e:
+        add_log("error", f"API错误: {str(e)[:100]}")
+        raise HTTPException(status_code=500, detail={"error": {"message": str(e)}})
+
+
+async def stream_responses_response(client: MimoClient, query: str, model: str):
+    """Responses API 流式响应生成器"""
+    msg_id = f"resp_{uuid.uuid4().hex[:24]}"
+    start_time = time.time()
+    completion_tokens = 0
+
+    try:
+        async for sse_data in client.stream_api(query, False, model):
+            content = sse_data.get("content", "")
+            if not content:
+                continue
+
+            completion_tokens += len(content.split())
+
+            # Responses API 流式格式
+            chunk = {
+                "type": "response.output_text.delta",
+                "item_id": f"msg_{uuid.uuid4().hex[:24]}",
+                "delta": content
+            }
+            yield f"data: {json.dumps(chunk)}\n\n"
+
+        # 发送完成事件
+        yield f"data: {json.dumps({'type': 'response.completed'})}\n\n"
+        yield "data: [DONE]\n\n"
+
+        # 记录使用情况
+        elapsed = time.time() - start_time
+        prompt_tokens = len(query.split())
+        tracker.record(
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            seconds=elapsed
+        )
+        add_log("success", f"[{model}] 输入:{prompt_tokens} 输出:{completion_tokens} 耗时:{elapsed:.1f}s")
+
+    except Exception as e:
+        error_chunk = {"type": "error", "message": str(e)}
+        yield f"data: {json.dumps(error_chunk)}\n\n"
+        add_log("error", f"流式错误: {str(e)[:100]}")
 
 
 @router.get("/v1/models")

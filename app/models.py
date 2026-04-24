@@ -83,3 +83,12 @@ class AddAccountRequest(BaseModel):
     user_id: str
     xiaomichatbot_ph: str
     nickname: Optional[str] = ""
+
+
+class OpenAIResponsesRequest(BaseModel):
+    """OpenAI Responses API 请求"""
+    model: str
+    input: str | List[dict]  # 支持字符串或消息数组
+    stream: bool = False
+    max_output_tokens: Optional[int] = None
+    temperature: Optional[float] = None

@@ -156,12 +156,6 @@
             gap: 6px;
         }
         .btn-refresh:hover { background: var(--bg-input); }
-        .pulse { animation: pulse 0.5s; }
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
         @media (max-width: 480px) {
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
         }
@@ -200,6 +194,14 @@
                 <div class="stat-item">
                     <div class="stat-value" id="avg-time">0s</div>
                     <div class="stat-label">平均响应</div>
+                </div>
+                <div class="stat-item" style="grid-column: span 2">
+                    <div class="stat-value" id="total-requests">0</div>
+                    <div class="stat-label">累计请求</div>
+                </div>
+                <div class="stat-item" style="grid-column: span 2">
+                    <div class="stat-value" id="total-tokens">0</div>
+                    <div class="stat-label">累计 Tokens</div>
                 </div>
             </div>
             <button class="btn-outline" onclick="resetUsage()" style="margin-top:12px">重置统计</button>
@@ -272,8 +274,8 @@
                 document.getElementById('today-input').textContent = fmtNum(s.today.prompt_tokens);
                 document.getElementById('today-output').textContent = fmtNum(s.today.completion_tokens);
                 document.getElementById('avg-time').textContent = s.today.avg_seconds + 's';
-                document.querySelector('.stats-grid').classList.add('pulse');
-                setTimeout(() => document.querySelector('.stats-grid').classList.remove('pulse'), 500);
+                document.getElementById('total-requests').textContent = fmtNum(s.total.requests);
+                document.getElementById('total-tokens').textContent = fmtNum(s.total.total_tokens);
             } catch(e) {}
         }
 

@@ -206,7 +206,17 @@ def build_query_from_messages(messages: list, max_messages: int = 10, max_conten
 
     query_parts = []
     for msg in messages:
-        content = msg.get("content", "") if hasattr(msg, 'get') else msg.content
+        # 支持dict和Pydantic模型
+        if hasattr(msg, 'model_dump'):
+            msg = msg.model_dump()
+        elif hasattr(msg, 'get'):
+            msg = msg
+        else:
+            msg = {"role": "user", "content": str(msg)}
+        
+        content = msg.get("content", "")
+        role = msg.get("role", "user")
+        
         # 处理list类型的content (多模态)
         if isinstance(content, list):
             text_parts = []
@@ -222,7 +232,7 @@ def build_query_from_messages(messages: list, max_messages: int = 10, max_conten
         # 截断过长的内容
         if isinstance(content, str) and len(content) > max_content_len:
             content = content[:max_content_len] + "..."
-        query_parts.append(f"{msg.get('role', 'user')}: {content}")
+        query_parts.append(f"{role}: {content}")
 
     return "\n".join(query_parts)
 

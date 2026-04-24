@@ -32,6 +32,9 @@ pip install -r requirements.txt
 # 或手动启动
 PORT=9999 nohup python3 main.py &
 ```
+### 添加账号
+![http://img.cd-sw.com/img/1070](http://img.cd-sw.com/img/1070)
+![http://img.cd-sw.com/img/1071](http://img.cd-sw.com/img/1071)
 
 ### 访问
 

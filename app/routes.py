@@ -248,6 +248,7 @@ async def stream_responses_response(client: MimoClient, query: str, model: str):
     completion_tokens = 0
     full_text = ""
     in_think = False
+    actual_response = ""  # 存储实际回复内容
 
     try:
         # 发送 response.created 事件
@@ -264,6 +265,9 @@ async def stream_responses_response(client: MimoClient, query: str, model: str):
             if not content:
                 continue
 
+            # 去除特殊字符
+            content = content.replace("\x00", "")
+            
             # 过滤<think>标签内容，只发送实际回复
             full_text += content
             
@@ -296,21 +300,23 @@ async def stream_responses_response(client: MimoClient, query: str, model: str):
             
             if output:
                 completion_tokens += len(output.split())
+                actual_response += output
                 yield f"data: {json.dumps({'type': 'response.output_text.delta', 'item_id': msg_id, 'content_index': 0, 'delta': output})}\n\n"
 
         # 发送剩余内容
         if full_text and not in_think:
+            actual_response += full_text
             yield f"data: {json.dumps({'type': 'response.output_text.delta', 'item_id': msg_id, 'content_index': 0, 'delta': full_text})}\n\n"
 
-        # 发送 content_part.done 事件
-        yield f"data: {json.dumps({'type': 'response.content_part.done', 'item_id': msg_id, 'content_index': 0, 'part': {'type': 'text', 'text': ''}})}\n\n"
+        # 发送 content_part.done 事件（包含完整文本）
+        yield f"data: {json.dumps({'type': 'response.content_part.done', 'item_id': msg_id, 'content_index': 0, 'part': {'type': 'text', 'text': actual_response}})}\n\n"
 
-        # 发送 output_item.done 事件
-        yield f"data: {json.dumps({'type': 'response.output_item.done', 'item': {'id': msg_id, 'type': 'message', 'role': 'assistant', 'content': [{'type': 'text', 'text': ''}]}})}\n\n"
+        # 发送 output_item.done 事件（包含完整内容）
+        yield f"data: {json.dumps({'type': 'response.output_item.done', 'item': {'id': msg_id, 'type': 'message', 'role': 'assistant', 'content': [{'type': 'text', 'text': actual_response}]}})}\n\n"
 
         # 发送 response.completed 事件
         prompt_tokens = len(query.split())
-        yield f"data: {json.dumps({'type': 'response.completed', 'response': {'id': resp_id, 'object': 'response', 'created_at': int(time.time()), 'model': model, 'status': 'completed', 'usage': {'prompt_tokens': prompt_tokens, 'completion_tokens': completion_tokens, 'total_tokens': prompt_tokens + completion_tokens}}})}\n\n"
+        yield f"data: {json.dumps({'type': 'response.completed', 'response': {'id': resp_id, 'object': 'response', 'created_at': int(time.time()), 'model': model, 'status': 'completed', 'output': [{'id': msg_id, 'type': 'message', 'role': 'assistant', 'content': [{'type': 'text', 'text': actual_response}]}], 'usage': {'prompt_tokens': prompt_tokens, 'completion_tokens': completion_tokens, 'total_tokens': prompt_tokens + completion_tokens}}})}\n\n"
 
         yield "data: [DONE]\n\n"
 

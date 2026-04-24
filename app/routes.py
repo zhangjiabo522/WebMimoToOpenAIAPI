@@ -242,11 +242,22 @@ async def responses_api(
 
 async def stream_responses_response(client: MimoClient, query: str, model: str):
     """Responses API 流式响应生成器"""
-    msg_id = f"resp_{uuid.uuid4().hex[:24]}"
+    resp_id = f"resp_{uuid.uuid4().hex[:24]}"
+    msg_id = f"msg_{uuid.uuid4().hex[:24]}"
+    content_id = f"content_{uuid.uuid4().hex[:24]}"
     start_time = time.time()
     completion_tokens = 0
 
     try:
+        # 发送 response.created 事件
+        yield f"data: {json.dumps({'type': 'response.created', 'response': {'id': resp_id, 'object': 'response', 'created_at': int(time.time()), 'model': model, 'status': 'in_progress'}})}\n\n"
+
+        # 发送 response.output_item.added 事件
+        yield f"data: {json.dumps({'type': 'response.output_item.added', 'item': {'id': msg_id, 'type': 'message', 'role': 'assistant', 'content': []}})}\n\n"
+
+        # 发送 response.content_part.added 事件
+        yield f"data: {json.dumps({'type': 'response.content_part.added', 'item_id': msg_id, 'content_index': 0, 'part': {'type': 'text', 'text': ''}})}\n\n"
+
         async for sse_data in client.stream_api(query, False, model):
             content = sse_data.get("content", "")
             if not content:
@@ -254,16 +265,18 @@ async def stream_responses_response(client: MimoClient, query: str, model: str):
 
             completion_tokens += len(content.split())
 
-            # Responses API 流式格式
-            chunk = {
-                "type": "response.output_text.delta",
-                "item_id": f"msg_{uuid.uuid4().hex[:24]}",
-                "delta": content
-            }
-            yield f"data: {json.dumps(chunk)}\n\n"
+            # 发送文本增量
+            yield f"data: {json.dumps({'type': 'response.output_text.delta', 'item_id': msg_id, 'content_index': 0, 'delta': content})}\n\n"
 
-        # 发送完成事件
-        yield f"data: {json.dumps({'type': 'response.completed'})}\n\n"
+        # 发送 content_part.done 事件
+        yield f"data: {json.dumps({'type': 'response.content_part.done', 'item_id': msg_id, 'content_index': 0, 'part': {'type': 'text', 'text': ''}})}\n\n"
+
+        # 发送 output_item.done 事件
+        yield f"data: {json.dumps({'type': 'response.output_item.done', 'item': {'id': msg_id, 'type': 'message', 'role': 'assistant', 'content': [{'type': 'text', 'text': ''}]}})}\n\n"
+
+        # 发送 response.completed 事件
+        yield f"data: {json.dumps({'type': 'response.completed', 'response': {'id': resp_id, 'object': 'response', 'created_at': int(time.time()), 'model': model, 'status': 'completed', 'usage': {'prompt_tokens': len(query.split()), 'completion_tokens': completion_tokens, 'total_tokens': len(query.split()) + completion_tokens}}})}\n\n"
+
         yield "data: [DONE]\n\n"
 
         # 记录使用情况

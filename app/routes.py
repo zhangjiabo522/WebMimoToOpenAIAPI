@@ -84,6 +84,11 @@ async def chat_completions(
     # 构建查询字符串
     query = build_query_from_messages(request.messages)
 
+    # 添加系统提示词
+    system_prompt = config_manager.get_config().get('system_prompt', '')
+    if system_prompt:
+        query = f"{system_prompt}\n\n{query}"
+
     # 判断是否启用深度思考
     thinking = bool(request.reasoning_effort)
 
@@ -200,6 +205,11 @@ async def responses_api(
     # 兼容旧版本：只有单个消息时直接用content
     if len(messages) == 1:
         query = messages[0].get("content", query)
+
+    # 添加全局系统提示词
+    global_system_prompt = config_manager.get_config().get('system_prompt', '')
+    if global_system_prompt:
+        query = f"{global_system_prompt}\n\n{query}"
 
     # 创建Mimo客户端
     client = MimoClient(account)

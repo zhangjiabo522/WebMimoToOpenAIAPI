@@ -23,6 +23,8 @@ class Config:
     """应用配置"""
     api_keys: str = "sk-default"
     mimo_accounts: List[MimoAccount] = None
+    system_prompt: str = ""
+    default_model: str = "mimo-v2.5-pro"
 
     def __post_init__(self):
         if self.mimo_accounts is None:
@@ -31,7 +33,9 @@ class Config:
     def to_dict(self):
         return {
             "api_keys": self.api_keys,
-            "mimo_accounts": [acc.to_dict() for acc in self.mimo_accounts]
+            "mimo_accounts": [acc.to_dict() for acc in self.mimo_accounts],
+            "system_prompt": self.system_prompt,
+            "default_model": self.default_model
         }
 
 
@@ -59,7 +63,9 @@ class ConfigManager:
                 ]
                 self.config = Config(
                     api_keys=data.get('api_keys', 'sk-default'),
-                    mimo_accounts=accounts
+                    mimo_accounts=accounts,
+                    system_prompt=data.get('system_prompt', ''),
+                    default_model=data.get('default_model', 'mimo-v2.5-pro')
                 )
         except Exception as e:
             print(f"加载配置失败: {e}")
@@ -111,7 +117,9 @@ class ConfigManager:
             ]
             self.config = Config(
                 api_keys=new_config.get('api_keys', 'sk-default'),
-                mimo_accounts=accounts
+                mimo_accounts=accounts,
+                system_prompt=new_config.get('system_prompt', ''),
+                default_model=new_config.get('default_model', 'mimo-v2.5-pro')
             )
             self.save()
 

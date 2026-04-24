@@ -156,6 +156,17 @@
             gap: 6px;
         }
         .btn-refresh:hover { background: var(--bg-input); }
+        .tabs { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            color: var(--text-muted);
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+        }
+        .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
         @media (max-width: 480px) {
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
         }
@@ -168,7 +179,46 @@
             <p><a href="https://github.com/zhangjiabo522/WebMimoToOpenAIAPI" target="_blank" style="color:var(--primary)">WebMimoToOpenAIAPI</a> - 小米 MiMo 模型 OpenAI 兼容 API 代理</p>
         </div>
 
-        <!-- 用量统计 -->
+        <!-- Tabs -->
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('stats')">统计</div>
+            <div class="tab" onclick="switchTab('settings')">设置</div>
+            <div class="tab" onclick="switchTab('accounts')">账号</div>
+        </div>
+
+        <!-- Stats Tab -->
+        <div id="tab-stats" class="tab-content active">
+            <!-- 用量统计 -->
+            <div class="card">
+            <div class="stat-item" style="grid-column: span 2">
+                    <div class="stat-value" id="total-requests">0</div>
+                    <div class="stat-label">累计请求</div>
+                </div>
+                <div class="stat-item" style="grid-column: span 2">
+                    <div class="stat-value" id="total-tokens">0</div>
+                    <div class="stat-label">累计 Tokens</div>
+                </div>
+            </div>
+            <button class="btn-outline" onclick="resetUsage()" style="margin-top:12px">重置统计</button>
+        </div>
+
+        <!-- 实时日志 -->
+        <div class="card">
+            <div class="card-header">
+                <h2>实时日志</h2>
+                <button class="btn-refresh" onclick="clearLogs()">清空</button>
+            </div>
+            <div id="logs" class="log-box"></div>
+        </div>
+
+        <!-- 可用模型 -->
+        <div class="card">
+            <h2>可用模型</h2>
+            <div id="models" class="models"></div>
+        </div>
+        </div>
+
+        <!-- Settings Tab -->
         <div class="card">
             <div class="card-header">
                 <h2>用量统计</h2>
@@ -252,18 +302,81 @@
             <h2>账号列表</h2>
             <div id="accounts"></div>
         </div>
+        </div>
+
+        <!-- Settings Tab -->
+        <div id="tab-settings" class="tab-content">
+            <div class="card">
+                <h2>系统设置</h2>
+                <label style="font-size:11px;color:var(--text-muted)">系统提示词 (每次请求都会带上)</label>
+                <textarea id="systemPrompt" placeholder="你是一个有用的AI助手..."></textarea>
+                <button class="btn-primary" onclick="saveSettings()">保存</button>
+                <div id="settingsResult"></div>
+            </div>
+
+            <div class="card">
+                <h2>API Keys</h2>
+                <label style="font-size:11px;color:var(--text-muted)">多个 Key 用逗号分隔</label>
+                <input type="text" id="apiKeys" placeholder="sk-key1, sk-key2">
+                <button class="btn-primary" onclick="saveKeys()">保存</button>
+                <div id="keysResult"></div>
+            </div>
+        </div>
+
+        <!-- Accounts Tab -->
+        <div id="tab-accounts" class="tab-content">
+            <div class="card">
+                <h2>添加账号</h2>
+                <details>
+                    <summary>如何获取凭证?</summary>
+                    <ol style="margin:10px 0;padding-left:20px;color:var(--text-muted);font-size:13px">
+                        <li>登录 <a href="https://aistudio.xiaomimimo.com" target="_blank" style="color:var(--primary)">aistudio.xiaomimimo.com</a></li>
+                        <li>F12 → Network → 发送消息 → 找到 chat 请求</li>
+                        <li>右键 → Copy as cURL （cmd）→ 粘贴到下方</li>
+                    </ol>
+                </details>
+                <textarea id="curl" placeholder="粘贴 cURL 命令..."></textarea>
+                <button class="btn-primary" onclick="parse()">解析</button>
+                <div id="parseResult"></div>
+            </div>
+
+            <div class="card">
+                <h2>账号列表</h2>
+                <div id="accounts"></div>
+            </div>
+        </div>
     </div>
 
     <script>
-        let cfg = { api_keys: '', mimo_accounts: [] }, parsed = null;
+        let cfg = { api_keys: '', mimo_accounts: [], system_prompt: '', default_model: 'mimo-v2.5-pro' }, parsed = null;
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('tab-' + tab).classList.add('active');
+        }
 
         async function load() {
             cfg = await (await fetch('/api/config')).json();
             document.getElementById('apiKeys').value = cfg.api_keys || '';
+            document.getElementById('systemPrompt').value = cfg.system_prompt || '';
             renderAccounts();
             loadStats();
             loadModels();
             connectLogs();
+        }
+
+        async function saveSettings() {
+            cfg.system_prompt = document.getElementById('systemPrompt').value;
+            await fetch('/api/config', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(cfg) });
+            show('settingsResult', 'success', '已保存');
+        }
+
+        async function saveKeys() {
+            cfg.api_keys = document.getElementById('apiKeys').value;
+            await fetch('/api/config', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(cfg) });
+            show('keysResult', 'success', '已保存');
         }
 
         async function loadStats() {
@@ -289,6 +402,14 @@
         function fmtNum(n) {
             if (n >= 1000) return (n/1000).toFixed(1) + 'k';
             return n;
+        }
+
+        function show(id, cls, msg) {
+            const d = document.getElementById(id);
+            d.className = 'status ' + cls;
+            d.textContent = msg;
+            d.style.display = 'block';
+            setTimeout(() => d.style.display = 'none', 2000);
         }
 
         function renderAccounts() {

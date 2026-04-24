@@ -26,6 +26,20 @@ log_queue: List[str] = []
 log_listeners: List[asyncio.Queue] = []
 
 
+def parse_model(model: str) -> str:
+    """解析模型名称"""
+    model = model.lower()
+    model = model.replace("gpt-", "")
+    model = model.replace("4o", "mimo-v2.5-pro").replace("4", "mimo-v2.5-pro").replace("3.5", "mimo-v2-flash")
+    if "flash" in model:
+        return "mimo-v2-flash"
+    elif "pro" in model:
+        return "mimo-v2.5-pro"
+    elif "v2.5" in model or "v2" in model:
+        return "mimo-v2.5"
+    return "mimo-v2.5-pro"
+
+
 def add_log(msg_type: str, msg: str):
     """添加日志"""
     now = datetime.now().strftime("%H:%M:%S")
@@ -77,9 +91,7 @@ async def chat_completions(
     client = MimoClient(account)
 
     # 获取模型
-    model = request.model.replace("gpt-", "").replace("4o", "mimo-v2.5-pro").replace("4", "mimo-v2.5-pro").replace("3.5", "mimo-v2-flash").replace("2", "mimo-v2.5")
-    if model not in MimoClient.AVAILABLE_MODELS:
-        model = "mimo-v2.5-pro"
+    model = parse_model(request.model)
 
     # 流式响应
     if request.stream:
@@ -193,9 +205,7 @@ async def responses_api(
     client = MimoClient(account)
 
     # 获取模型
-    model = request.model.replace("gpt-", "").replace("4o", "mimo-v2.5-pro").replace("4", "mimo-v2.5-pro").replace("3.5", "mimo-v2-flash").replace("2", "mimo-v2.5")
-    if model not in MimoClient.AVAILABLE_MODELS:
-        model = "mimo-v2.5-pro"
+    model = parse_model(request.model)
 
     # 流式响应
     if request.stream:

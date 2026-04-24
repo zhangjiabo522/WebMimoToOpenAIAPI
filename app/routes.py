@@ -244,9 +244,10 @@ async def stream_responses_response(client: MimoClient, query: str, model: str):
     """Responses API 流式响应生成器"""
     resp_id = f"resp_{uuid.uuid4().hex[:24]}"
     msg_id = f"msg_{uuid.uuid4().hex[:24]}"
-    content_id = f"content_{uuid.uuid4().hex[:24]}"
     start_time = time.time()
     completion_tokens = 0
+    full_text = ""
+    in_think = False
 
     try:
         # 发送 response.created 事件
@@ -263,10 +264,43 @@ async def stream_responses_response(client: MimoClient, query: str, model: str):
             if not content:
                 continue
 
-            completion_tokens += len(content.split())
+            # 过滤<think>标签内容，只发送实际回复
+            full_text += content
+            
+            # 简单过滤：跳过<think>标签内的内容
+            buffer = full_text
+            output = ""
+            
+            while buffer:
+                if not in_think:
+                    think_start = buffer.find("<think>")
+                    if think_start != -1:
+                        output += buffer[:think_start]
+                        buffer = buffer[think_start + 7:]
+                        in_think = True
+                    else:
+                        # 保留末尾以防<think>被截断
+                        if len(buffer) > 7:
+                            output += buffer[:-7]
+                            buffer = buffer[-7:]
+                        break
+                else:
+                    think_end = buffer.find("</think>")
+                    if think_end != -1:
+                        buffer = buffer[think_end + 8:]
+                        in_think = False
+                    else:
+                        break
+            
+            full_text = buffer
+            
+            if output:
+                completion_tokens += len(output.split())
+                yield f"data: {json.dumps({'type': 'response.output_text.delta', 'item_id': msg_id, 'content_index': 0, 'delta': output})}\n\n"
 
-            # 发送文本增量
-            yield f"data: {json.dumps({'type': 'response.output_text.delta', 'item_id': msg_id, 'content_index': 0, 'delta': content})}\n\n"
+        # 发送剩余内容
+        if full_text and not in_think:
+            yield f"data: {json.dumps({'type': 'response.output_text.delta', 'item_id': msg_id, 'content_index': 0, 'delta': full_text})}\n\n"
 
         # 发送 content_part.done 事件
         yield f"data: {json.dumps({'type': 'response.content_part.done', 'item_id': msg_id, 'content_index': 0, 'part': {'type': 'text', 'text': ''}})}\n\n"
@@ -275,13 +309,13 @@ async def stream_responses_response(client: MimoClient, query: str, model: str):
         yield f"data: {json.dumps({'type': 'response.output_item.done', 'item': {'id': msg_id, 'type': 'message', 'role': 'assistant', 'content': [{'type': 'text', 'text': ''}]}})}\n\n"
 
         # 发送 response.completed 事件
-        yield f"data: {json.dumps({'type': 'response.completed', 'response': {'id': resp_id, 'object': 'response', 'created_at': int(time.time()), 'model': model, 'status': 'completed', 'usage': {'prompt_tokens': len(query.split()), 'completion_tokens': completion_tokens, 'total_tokens': len(query.split()) + completion_tokens}}})}\n\n"
+        prompt_tokens = len(query.split())
+        yield f"data: {json.dumps({'type': 'response.completed', 'response': {'id': resp_id, 'object': 'response', 'created_at': int(time.time()), 'model': model, 'status': 'completed', 'usage': {'prompt_tokens': prompt_tokens, 'completion_tokens': completion_tokens, 'total_tokens': prompt_tokens + completion_tokens}}})}\n\n"
 
         yield "data: [DONE]\n\n"
 
         # 记录使用情况
         elapsed = time.time() - start_time
-        prompt_tokens = len(query.split())
         tracker.record(
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,

@@ -1,7 +1,7 @@
 *.json
 nohup.out
+nohup.log
 *.pid
 .env
-token.json
-usage.json
-config.json
+__pycache__/
+*.pyc

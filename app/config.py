@@ -25,6 +25,7 @@ class Config:
     mimo_accounts: List[MimoAccount] = None
     system_prompt: str = ""
     default_model: str = "mimo-v2.5-pro"
+    account_mode: str = "random"
 
     def __post_init__(self):
         if self.mimo_accounts is None:
@@ -35,7 +36,8 @@ class Config:
             "api_keys": self.api_keys,
             "mimo_accounts": [acc.to_dict() for acc in self.mimo_accounts],
             "system_prompt": self.system_prompt,
-            "default_model": self.default_model
+            "default_model": self.default_model,
+            "account_mode": self.account_mode
         }
 
 
@@ -65,7 +67,8 @@ class ConfigManager:
                     api_keys=data.get('api_keys', 'sk-default'),
                     mimo_accounts=accounts,
                     system_prompt=data.get('system_prompt', ''),
-                    default_model=data.get('default_model', 'mimo-v2.5-pro')
+                    default_model=data.get('default_model', 'mimo-v2.5-pro'),
+                    account_mode=data.get('account_mode', 'random')
                 )
         except Exception as e:
             print(f"加载配置失败: {e}")
@@ -88,13 +91,20 @@ class ConfigManager:
             return key in keys
 
     def get_next_account(self) -> Optional[MimoAccount]:
-        """获取下一个账号（轮询）"""
+        """获取下一个账号（支持轮询和随机）"""
         with self.lock:
             if not self.config.mimo_accounts:
                 return None
-            account = self.config.mimo_accounts[self.account_idx % len(self.config.mimo_accounts)]
-            self.account_idx += 1
-            return account
+            
+            mode = getattr(self.config, 'account_mode', 'random')
+            
+            if mode == 'random':
+                import random
+                return random.choice(self.config.mimo_accounts)
+            else:
+                account = self.config.mimo_accounts[self.account_idx % len(self.config.mimo_accounts)]
+                self.account_idx += 1
+                return account
 
     def add_account(self, account: MimoAccount, nickname: str = ""):
         """添加账号"""
@@ -119,7 +129,8 @@ class ConfigManager:
                 api_keys=new_config.get('api_keys', 'sk-default'),
                 mimo_accounts=accounts,
                 system_prompt=new_config.get('system_prompt', ''),
-                default_model=new_config.get('default_model', 'mimo-v2.5-pro')
+                default_model=new_config.get('default_model', 'mimo-v2.5-pro'),
+                account_mode=new_config.get('account_mode', 'random')
             )
             self.save()
 

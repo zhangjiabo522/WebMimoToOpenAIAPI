@@ -61,6 +61,7 @@
         .models { display: flex; flex-wrap: wrap; gap: 8px; }
         .model-tag { background: var(--bg-input); padding: 6px 12px; border-radius: 6px; font-size: 12px; font-family: monospace; }
         
+        select { width: 100%; background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; padding: 10px; color: var(--text); margin-bottom: 10px; font-size: 14px; }
         details { margin-bottom: 12px; }
         summary { cursor: pointer; color: var(--primary); font-size: 0.85rem; }
         ol { margin: 8px 0 0 20px; font-size: 0.85rem; color: var(--text-muted); }
@@ -123,6 +124,16 @@
                 <button onclick="saveKeys()">保存</button>
                 <div id="keysResult"></div>
             </div>
+
+            <div class="card">
+                <h2>账号模式</h2>
+                <label>多账号调用方式</label>
+                <select id="accountMode" onchange="saveAccountMode()">
+                    <option value="random">随机</option>
+                    <option value="round">轮询</option>
+                </select>
+                <div id="accountModeResult"></div>
+            </div>
         </div>
 
         <!-- Accounts Tab -->
@@ -166,10 +177,12 @@
             cfg = await (await fetch('/api/config')).json();
             document.getElementById('apiKeys').value = cfg.api_keys || '';
             document.getElementById('systemPrompt').value = cfg.system_prompt || '';
+            document.getElementById('accountMode').value = cfg.account_mode || 'random';
             renderAccounts();
             loadStats();
             loadModels();
             connectLogs();
+            setInterval(loadStats, 5000);
         }
         
         async function saveSettings() {
@@ -182,6 +195,12 @@
             cfg.api_keys = document.getElementById('apiKeys').value;
             await fetch('/api/config', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(cfg) });
             show('keysResult', 'success', '已保存');
+        }
+        
+        async function saveAccountMode() {
+            cfg.account_mode = document.getElementById('accountMode').value;
+            await fetch('/api/config', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(cfg) });
+            show('accountModeResult', 'success', '已保存');
         }
         
         async function loadStats() {

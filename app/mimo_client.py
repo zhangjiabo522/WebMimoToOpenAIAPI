@@ -51,7 +51,7 @@ class MimoClient:
             "xiaomichatbot_ph": self.account.xiaomichatbot_ph,
         }
 
-    def _create_request_body(self, query: str, thinking: bool = False, model: str = "mimo-v2.5-pro") -> dict:
+    def _create_request_body(self, query: str, thinking: bool = False, model: str = "mimo-v2.5-pro", tools: bool = False) -> dict:
         """创建请求体"""
         return {
             "msgId": uuid.uuid4().hex[:32],
@@ -60,7 +60,7 @@ class MimoClient:
             "isEditedQuery": False,
             "modelConfig": {
                 "enableThinking": thinking,
-                "webSearchStatus": "disabled",
+                "webSearchStatus": "enabled" if tools else "disabled",
                 "model": model,
                 "temperature": 0.8,
                 "topP": 0.95,

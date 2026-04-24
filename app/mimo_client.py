@@ -13,6 +13,13 @@ class MimoClient:
     API_URL = "https://aistudio.xiaomimimo.com/open-apis/bot/chat"
     TIMEOUT = 120.0
 
+    # 支持的模型列表
+    AVAILABLE_MODELS = [
+        "mimo-v2.5-pro",
+        "mimo-v2-flash-studio",
+        "mimo-2",
+    ]
+
     def __init__(self, account: MimoAccount):
         self.account = account
 
@@ -23,8 +30,17 @@ class MimoClient:
             "Content-Type": "application/json",
             "Origin": "https://aistudio.xiaomimimo.com",
             "Referer": "https://aistudio.xiaomimimo.com/",
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
             "x-timezone": "Asia/Shanghai",
+            "cache-control": "no-cache",
+            "pragma": "no-cache",
+            "dnt": "1",
+            "sec-ch-ua": '"Microsoft Edge";v="147", "Not.A/Brand";v="8", "Chromium";v="147"',
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": '"Windows"',
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "same-origin",
         }
 
     def _create_cookies(self) -> dict:
@@ -35,30 +51,45 @@ class MimoClient:
             "xiaomichatbot_ph": self.account.xiaomichatbot_ph,
         }
 
-    def _create_request_body(self, query: str, thinking: bool) -> dict:
+    def _create_request_body(self, query: str, thinking: bool = False, model: str = "mimo-v2.5-pro") -> dict:
         """创建请求体"""
         return {
             "msgId": uuid.uuid4().hex[:32],
             "conversationId": uuid.uuid4().hex[:32],
             "query": query,
+            "isEditedQuery": False,
             "modelConfig": {
                 "enableThinking": thinking,
+                "webSearchStatus": "disabled",
+                "model": model,
                 "temperature": 0.8,
                 "topP": 0.95,
-                "webSearchStatus": "disabled",
-                "model": "mimo-v2-flash-studio"
             },
             "multiMedias": []
         }
 
-    async def call_api(self, query: str, thinking: bool = False) -> Tuple[str, str, dict]:
-        """
-        调用Mimo API（非流式）
+    async def test_connection(self) -> Tuple[bool, str]:
+        """测试账号连接"""
+        try:
+            body = self._create_request_body("hi", False)
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    self.API_URL,
+                    params={"xiaomichatbot_ph": self.account.xiaomichatbot_ph},
+                    headers=self._create_headers(),
+                    cookies=self._create_cookies(),
+                    json=body
+                )
+                if response.status_code == 200:
+                    return True, "连接成功"
+                else:
+                    return False, f"HTTP {response.status_code}"
+        except Exception as e:
+            return False, str(e)
 
-        Returns:
-            (content, think_content, usage)
-        """
-        body = self._create_request_body(query, thinking)
+    async def call_api(self, query: str, thinking: bool = False, model: str = "mimo-v2.5-pro") -> Tuple[str, str, dict]:
+        """调用Mimo API（非流式）"""
+        body = self._create_request_body(query, thinking, model)
 
         async with httpx.AsyncClient(timeout=self.TIMEOUT) as client:
             response = await client.post(
@@ -96,14 +127,9 @@ class MimoClient:
 
             return content, think_content, usage
 
-    async def stream_api(self, query: str, thinking: bool = False) -> AsyncIterator[dict]:
-        """
-        调用Mimo API（流式）
-
-        Yields:
-            SSE数据字典
-        """
-        body = self._create_request_body(query, thinking)
+    async def stream_api(self, query: str, thinking: bool = False, model: str = "mimo-v2.5-pro") -> AsyncIterator[dict]:
+        """调用Mimo API（流式）"""
+        body = self._create_request_body(query, thinking, model)
 
         async with httpx.AsyncClient(timeout=self.TIMEOUT) as client:
             async with client.stream(
@@ -128,12 +154,7 @@ class MimoClient:
 
     @staticmethod
     def _parse_think_tags(text: str) -> Tuple[str, str]:
-        """
-        解析<think>标签
-
-        Returns:
-            (content, think_content)
-        """
+        """解析<think>标签"""
         start = text.find("<think>")
         if start == -1:
             return text, ""

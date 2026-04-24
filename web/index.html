@@ -9,279 +9,161 @@
             --primary: #6366f1;
             --primary-hover: #4f46e5;
             --success: #10b981;
-            --success-hover: #059669;
             --danger: #ef4444;
-            --danger-hover: #dc2626;
             --bg: #0f172a;
             --bg-card: #1e293b;
             --bg-input: #334155;
             --text: #f1f5f9;
             --text-muted: #94a3b8;
             --border: #475569;
-            --shadow: rgba(0, 0, 0, 0.3);
         }
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, var(--bg) 0%, #1a1a2e 100%);
             min-height: 100vh;
             color: var(--text);
-            line-height: 1.6;
         }
-        .container {
-            max-width: 720px;
-            margin: 0 auto;
-            padding: 40px 20px;
-        }
-        .header {
-            text-align: center;
-            margin-bottom: 40px;
-        }
+        .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+        .header { text-align: center; margin-bottom: 30px; }
         .header h1 {
-            font-size: 2.5rem;
-            font-weight: 700;
+            font-size: 2rem;
             background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 8px;
         }
-        .header p {
-            color: var(--text-muted);
-            font-size: 1rem;
-        }
+        .header p { color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; }
         .card {
             background: var(--bg-card);
-            border-radius: 16px;
-            padding: 24px;
-            margin-bottom: 24px;
-            box-shadow: 0 4px 24px var(--shadow);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        .card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 32px var(--shadow);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255,255,255,0.05);
         }
         .card h2 {
-            font-size: 1.25rem;
-            font-weight: 600;
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .card h2::before {
-            content: '';
-            width: 4px;
-            height: 20px;
-            background: linear-gradient(180deg, var(--primary), #a855f7);
-            border-radius: 2px;
-        }
-        input, textarea {
-            width: 100%;
-            padding: 12px 16px;
-            background: var(--bg-input);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            color: var(--text);
-            font-size: 14px;
-            transition: border-color 0.2s, box-shadow 0.2s;
-            outline: none;
-        }
-        input:focus, textarea:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
-        }
-        input::placeholder, textarea::placeholder {
-            color: var(--text-muted);
-        }
-        textarea {
-            height: 140px;
-            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
-            font-size: 12px;
-            resize: vertical;
-            margin-bottom: 12px;
-        }
-        .btn-group {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        button {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .btn-primary {
-            background: linear-gradient(135deg, var(--primary), #8b5cf6);
-            color: white;
-        }
-        .btn-primary:hover {
-            background: linear-gradient(135deg, var(--primary-hover), #7c3aed);
-            transform: translateY(-1px);
-        }
-        .btn-success {
-            background: linear-gradient(135deg, var(--success), #34d399);
-            color: white;
-        }
-        .btn-success:hover {
-            background: linear-gradient(135deg, var(--success-hover), #10b981);
-        }
-        .btn-danger {
-            background: var(--danger);
-            color: white;
-            padding: 6px 12px;
-            font-size: 12px;
-        }
-        .btn-danger:hover {
-            background: var(--danger-hover);
-        }
-        .btn-outline {
-            background: transparent;
-            border: 1px solid var(--border);
-            color: var(--text);
-        }
-        .btn-outline:hover {
-            background: var(--bg-input);
-            border-color: var(--primary);
-        }
-        details {
-            margin-bottom: 16px;
-        }
-        summary {
-            cursor: pointer;
-            color: var(--primary);
-            font-size: 14px;
-            padding: 8px 0;
-            user-select: none;
-        }
-        summary:hover {
-            color: #a855f7;
-        }
-        details ol {
-            margin: 12px 0;
-            padding-left: 24px;
-            color: var(--text-muted);
-            font-size: 14px;
-        }
-        details li {
-            margin: 8px 0;
-        }
-        details a {
-            color: var(--primary);
-            text-decoration: none;
-        }
-        details a:hover {
-            text-decoration: underline;
-        }
-        details code {
-            background: var(--bg-input);
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 13px;
-        }
-        .status {
-            padding: 12px 16px;
-            border-radius: 10px;
-            margin: 12px 0;
-            font-size: 14px;
+            font-size: 1.1rem;
+            margin-bottom: 15px;
             display: flex;
             align-items: center;
             gap: 8px;
         }
-        .status.success {
-            background: rgba(16, 185, 129, 0.15);
-            color: #34d399;
-            border: 1px solid rgba(16, 185, 129, 0.3);
+        .card h2::before {
+            content: '';
+            width: 4px;
+            height: 18px;
+            background: var(--primary);
+            border-radius: 2px;
         }
-        .status.error {
-            background: rgba(239, 68, 68, 0.15);
-            color: #f87171;
-            border: 1px solid rgba(239, 68, 68, 0.3);
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 12px;
         }
-        .status.loading {
-            background: rgba(99, 102, 241, 0.15);
-            color: #a5b4fc;
-            border: 1px solid rgba(99, 102, 241, 0.3);
+        .stat-item {
+            background: var(--bg-input);
+            padding: 14px;
+            border-radius: 10px;
+            text-align: center;
         }
-        .account-list {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
+        .stat-value { font-size: 1.4rem; font-weight: 700; color: var(--primary); }
+        .stat-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; margin-top: 4px; }
+        .log-box {
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 12px;
+            height: 250px;
+            overflow-y: auto;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 12px;
+            line-height: 1.6;
         }
+        .log-entry { margin-bottom: 6px; border-bottom: 1px solid #21262d; padding-bottom: 6px; }
+        .log-time { color: #8b949e; }
+        .log-success { color: #7ee787; }
+        .log-error { color: #ff7b72; }
+        .log-info { color: #79c0ff; }
+        .log-tokens { color: #d2a8ff; }
+        input, textarea {
+            width: 100%;
+            padding: 10px 14px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 13px;
+            margin-bottom: 10px;
+            outline: none;
+        }
+        textarea { height: 100px; font-family: monospace; font-size: 12px; resize: vertical; }
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-danger { background: var(--danger); color: white; font-size: 11px; padding: 5px 10px; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
         .account {
             background: var(--bg-input);
-            padding: 14px 16px;
-            border-radius: 10px;
+            padding: 12px;
+            border-radius: 8px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border: 1px solid var(--border);
-            transition: border-color 0.2s;
+            margin-bottom: 8px;
         }
-        .account:hover {
-            border-color: var(--primary);
-        }
-        .account-info {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .account-avatar {
-            width: 36px;
-            height: 36px;
-            background: linear-gradient(135deg, var(--primary), #a855f7);
+        .account-id { font-family: monospace; font-size: 13px; }
+        .status {
+            padding: 10px 14px;
             border-radius: 8px;
+            margin: 10px 0;
+            font-size: 13px;
+        }
+        .status.success { background: rgba(16,185,129,0.15); color: #34d399; }
+        .status.error { background: rgba(239,68,68,0.15); color: #f87171; }
+        .status.loading { background: rgba(99,102,241,0.15); color: #a5b4fc; }
+        .models { display: flex; flex-wrap: wrap; gap: 8px; }
+        .model-tag {
+            background: var(--bg-input);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-family: monospace;
+        }
+        .hidden { display: none; }
+        details { margin-bottom: 12px; }
+        summary { cursor: pointer; color: var(--primary); font-size: 13px; }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .card-header h2 { margin-bottom: 0; }
+        .btn-refresh {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 6px 12px;
+            font-size: 12px;
             display: flex;
             align-items: center;
-            justify-content: center;
-            font-weight: 600;
-            font-size: 14px;
+            gap: 6px;
         }
-        .account-id {
-            font-family: 'SF Mono', Monaco, monospace;
-            font-size: 14px;
-        }
-        .empty {
-            text-align: center;
-            color: var(--text-muted);
-            padding: 24px;
-            font-size: 14px;
-        }
-        .input-group {
-            margin-bottom: 12px;
-        }
-        .input-label {
-            font-size: 12px;
-            color: var(--text-muted);
-            margin-bottom: 6px;
-            display: block;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .fade-in {
-            animation: fadeIn 0.3s ease;
+        .btn-refresh:hover { background: var(--bg-input); }
+        .pulse { animation: pulse 0.5s; }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
         }
         @media (max-width: 480px) {
-            .container { padding: 20px 16px; }
-            .header h1 { font-size: 2rem; }
-            .card { padding: 20px; }
-            .btn-group { flex-direction: column; }
-            button { width: 100%; justify-content: center; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
         }
     </style>
 </head>
@@ -289,38 +171,84 @@
     <div class="container">
         <div class="header">
             <h1>MiMo2API</h1>
-            <p>小米 MiMo 模型 OpenAI 兼容 API</p>
+            <p>小米 MiMo 模型 OpenAI 兼容 API 代理</p>
         </div>
 
-        <div class="card fade-in">
-            <h2>API Keys</h2>
-            <div class="input-group">
-                <label class="input-label">多个 Key 用逗号分隔</label>
-                <input type="text" id="apiKeys" placeholder="sk-key1, sk-key2, sk-key3">
+        <!-- 用量统计 -->
+        <div class="card">
+            <div class="card-header">
+                <h2>用量统计</h2>
+                <button class="btn-refresh" onclick="loadStats()">↻ 刷新</button>
             </div>
-            <button class="btn-primary" onclick="saveKeys()">保存配置</button>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value" id="today-requests">0</div>
+                    <div class="stat-label">今日请求</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="today-tokens">0</div>
+                    <div class="stat-label">今日 Tokens</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="today-input">0</div>
+                    <div class="stat-label">输入 Tokens</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="today-output">0</div>
+                    <div class="stat-label">输出 Tokens</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="avg-time">0s</div>
+                    <div class="stat-label">平均响应</div>
+                </div>
+            </div>
+            <button class="btn-outline" onclick="resetUsage()" style="margin-top:12px">重置统计</button>
         </div>
 
-        <div class="card fade-in" style="animation-delay: 0.1s">
+        <!-- 实时日志 -->
+        <div class="card">
+            <div class="card-header">
+                <h2>实时日志</h2>
+                <button class="btn-refresh" onclick="clearLogs()">清空</button>
+            </div>
+            <div id="logs" class="log-box"></div>
+        </div>
+
+        <!-- 可用模型 -->
+        <div class="card">
+            <h2>可用模型</h2>
+            <div id="models" class="models"></div>
+        </div>
+
+        <!-- API Keys -->
+        <div class="card">
+            <h2>API Keys</h2>
+            <label style="font-size:11px;color:var(--text-muted)">多个 Key 用逗号分隔</label>
+            <input type="text" id="apiKeys" placeholder="sk-key1, sk-key2">
+            <button class="btn-primary" onclick="saveKeys()">保存</button>
+            <div id="keysResult"></div>
+        </div>
+
+        <!-- 添加账号 -->
+        <div class="card">
             <h2>添加账号</h2>
             <details>
                 <summary>如何获取凭证?</summary>
-                <ol>
-                    <li>登录 <a href="https://aistudio.xiaomimimo.com" target="_blank">aistudio.xiaomimimo.com</a></li>
-                    <li>打开浏览器开发者工具 (F12) → Network 标签</li>
-                    <li>发送一条消息，找到 <code>chat</code> 请求</li>
-                    <li>右键请求 → Copy as cURL</li>
-                    <li>粘贴到下方输入框</li>
+                <ol style="margin:10px 0;padding-left:20px;color:var(--text-muted);font-size:13px">
+                    <li>登录 <a href="https://aistudio.xiaomimimo.com" target="_blank" style="color:var(--primary)">aistudio.xiaomimimo.com</a></li>
+                    <li>F12 → Network → 发送消息 → 找到 chat 请求</li>
+                    <li>右键 → Copy as cURL → 粘贴到下方</li>
                 </ol>
             </details>
-            <textarea id="curl" placeholder="curl 'https://aistudio.xiaomimimo.com/open-apis/bot/chat...'"></textarea>
-            <button class="btn-primary" onclick="parse()">解析 cURL</button>
+            <textarea id="curl" placeholder="粘贴 cURL 命令..."></textarea>
+            <button class="btn-primary" onclick="parse()">解析</button>
             <div id="parseResult"></div>
         </div>
 
-        <div class="card fade-in" style="animation-delay: 0.2s">
-            <h2>已配置账号</h2>
-            <div id="accounts" class="account-list"></div>
+        <!-- 账号列表 -->
+        <div class="card">
+            <h2>账号列表</h2>
+            <div id="accounts"></div>
         </div>
     </div>
 
@@ -330,109 +258,138 @@
         async function load() {
             cfg = await (await fetch('/api/config')).json();
             document.getElementById('apiKeys').value = cfg.api_keys || '';
-            render();
+            renderAccounts();
+            loadStats();
+            loadModels();
+            connectLogs();
         }
 
-        function render() {
+        async function loadStats() {
+            try {
+                const s = await (await fetch('/api/usage')).json();
+                document.getElementById('today-requests').textContent = s.today.requests;
+                document.getElementById('today-tokens').textContent = fmtNum(s.today.total_tokens);
+                document.getElementById('today-input').textContent = fmtNum(s.today.prompt_tokens);
+                document.getElementById('today-output').textContent = fmtNum(s.today.completion_tokens);
+                document.getElementById('avg-time').textContent = s.today.avg_seconds + 's';
+                document.querySelector('.stats-grid').classList.add('pulse');
+                setTimeout(() => document.querySelector('.stats-grid').classList.remove('pulse'), 500);
+            } catch(e) {}
+        }
+
+        async function loadModels() {
+            try {
+                const d = await (await fetch('/v1/models')).json();
+                document.getElementById('models').innerHTML = d.data.map(m => `<div class="model-tag">${m.id}</div>`).join('');
+            } catch(e) {}
+        }
+
+        function fmtNum(n) {
+            if (n >= 1000) return (n/1000).toFixed(1) + 'k';
+            return n;
+        }
+
+        function renderAccounts() {
             const d = document.getElementById('accounts');
             if (cfg.mimo_accounts?.length) {
                 d.innerHTML = cfg.mimo_accounts.map((a, i) => `
                     <div class="account">
-                        <div class="account-info">
-                            <div class="account-avatar">${a.user_id.slice(-2)}</div>
-                            <span class="account-id">ID: ${a.user_id}</span>
-                        </div>
+                        <span class="account-id">ID: ${a.user_id}</span>
                         <button class="btn-danger" onclick="del(${i})">删除</button>
                     </div>
                 `).join('');
             } else {
-                d.innerHTML = '<div class="empty">暂无配置账号</div>';
+                d.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:20px">暂无账号</div>';
             }
         }
 
         async function saveKeys() {
             cfg.api_keys = document.getElementById('apiKeys').value;
-            await fetch('/api/config', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(cfg)
-            });
-            showStatus('parseResult', 'success', '配置已保存');
-            setTimeout(() => document.getElementById('parseResult').innerHTML = '', 2000);
+            await fetch('/api/config', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(cfg) });
+            show('keysResult', 'success', '已保存');
+            setTimeout(() => document.getElementById('keysResult').innerHTML = '', 2000);
         }
 
         async function parse() {
             const curl = document.getElementById('curl').value;
-            if (!curl.trim()) {
-                showStatus('parseResult', 'error', '请输入 cURL 命令');
-                return;
-            }
-            showStatus('parseResult', 'loading', '解析中...');
-            const r = await fetch('/api/parse-curl', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ curl })
-            });
-            if (!r.ok) {
-                showStatus('parseResult', 'error', '解析失败，请检查 cURL 格式');
-                return;
-            }
+            if (!curl.trim()) { show('parseResult', 'error', '请输入 cURL'); return; }
+            show('parseResult', 'loading', '解析中...');
+            const r = await fetch('/api/parse-curl', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({curl}) });
+            if (!r.ok) { show('parseResult', 'error', '解析失败'); return; }
             parsed = await r.json();
             document.getElementById('parseResult').innerHTML = `
                 <div class="status success">解析成功 - ID: ${parsed.user_id}</div>
-                <div class="btn-group" style="margin-top: 12px">
-                    <button class="btn-outline" onclick="test()">测试连接</button>
-                    <button class="btn-success" onclick="save()">添加账号</button>
+                <div style="margin-top:10px">
+                    <button class="btn-outline" onclick="test()">测试</button>
+                    <button class="btn-success" onclick="save()">添加</button>
                 </div>
                 <div id="testR"></div>
             `;
         }
 
         async function test() {
-            showStatus('testR', 'loading', '测试中...');
-            const r = await (await fetch('/api/test-account', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(parsed)
-            })).json();
-            if (r.success) {
-                showStatus('testR', 'success', '连接成功: ' + r.response.slice(0, 50));
-            } else {
-                showStatus('testR', 'error', '连接失败: ' + r.error);
-            }
+            show('testR', 'loading', '测试中...');
+            const r = await (await fetch('/api/test-account', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(parsed) })).json();
+            show('testR', r.success ? 'success' : 'error', r.success ? '连接成功' : '失败: ' + (r.error||'').slice(0,80));
         }
 
         async function save() {
             if (!parsed) return;
             cfg.mimo_accounts = cfg.mimo_accounts || [];
             cfg.mimo_accounts.push(parsed);
-            await fetch('/api/config', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(cfg)
-            });
+            await fetch('/api/config', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(cfg) });
             parsed = null;
             document.getElementById('curl').value = '';
-            showStatus('parseResult', 'success', '账号已添加');
+            show('parseResult', 'success', '已添加');
             load();
         }
 
         async function del(i) {
-            if (!confirm('确定要删除此账号吗?')) return;
+            if (!confirm('确定删除?')) return;
             cfg.mimo_accounts.splice(i, 1);
-            await fetch('/api/config', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(cfg)
-            });
+            await fetch('/api/config', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(cfg) });
             load();
         }
 
-        function showStatus(id, type, msg) {
+        async function resetUsage() {
+            if (!confirm('重置统计?')) return;
+            await fetch('/api/usage/reset', { method: 'POST' });
+            loadStats();
+        }
+
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+        }
+
+        function show(id, type, msg) {
             document.getElementById(id).innerHTML = `<div class="status ${type}">${msg}</div>`;
         }
 
+        function addLog(time, type, msg) {
+            const logs = document.getElementById('logs');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `<span class="log-time">${time}</span> <span class="log-${type}">${msg}</span>`;
+            logs.insertBefore(entry, logs.firstChild);
+            if (logs.children.length > 100) logs.removeChild(logs.lastChild);
+        }
+
+        function connectLogs() {
+            const ws = new EventSource('/api/logs');
+            ws.onmessage = function(e) {
+                try {
+                    const data = JSON.parse(e.data);
+                    addLog(data.time, data.type, data.msg);
+                    if (data.type === 'success') loadStats();
+                } catch(err) {}
+            };
+            ws.onerror = function() {
+                setTimeout(connectLogs, 3000);
+            };
+        }
+
         load();
+        setInterval(loadStats, 1000);
     </script>
 </body>
 </html>

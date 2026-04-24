@@ -1,13 +1,14 @@
 """Mimo2API Python版本 - 主程序入口"""
 
-import os
+import logging
+import re
 import uvicorn
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
-from app.routes import router
+from app.routes import router, add_log
 from app.config import config_manager
 
 # 创建FastAPI应用
@@ -44,8 +45,7 @@ async def serve_admin():
 
 def main():
     """主函数"""
-    # 获取端口配置
-    port = int(os.getenv("PORT", "8080"))
+    port = 9999
 
     print(f"""
 ╔══════════════════════════════════════════════════════════╗
@@ -57,13 +57,10 @@ def main():
 📍 地址: http://localhost:{port}
 📊 管理界面: http://localhost:{port}
 📡 API端点: http://localhost:{port}/v1/chat/completions
-📖 API文档: http://localhost:{port}/docs
 
 配置信息:
   - API Keys: {len(config_manager.config.api_keys.split(','))} 个
   - Mimo账号: {len(config_manager.config.mimo_accounts)} 个
-
-按 Ctrl+C 停止服务器
 """)
 
     # 启动服务器

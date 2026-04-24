@@ -62,3 +62,24 @@ class TestAccountRequest(BaseModel):
     service_token: str
     user_id: str
     xiaomichatbot_ph: str
+
+
+class ParseUrlRequest(BaseModel):
+    """解析URL请求"""
+    url: str
+
+
+class GenerateCodeRequest(BaseModel):
+    """生成代码请求"""
+    service_token: str
+    user_id: str
+    xiaomichatbot_ph: str
+    format: Optional[Literal["curl", "bash"]] = "curl"
+
+
+class AddAccountRequest(BaseModel):
+    """手动添加账号请求"""
+    service_token: str
+    user_id: str
+    xiaomichatbot_ph: str
+    nickname: Optional[str] = ""

@@ -90,6 +90,19 @@ class ConfigManager:
             self.account_idx += 1
             return account
 
+    def add_account(self, account: MimoAccount, nickname: str = ""):
+        """添加账号"""
+        with self.lock:
+            if not self.config.mimo_accounts:
+                self.config.mimo_accounts = []
+            self.config.mimo_accounts.append(account)
+            self.save()
+
+    def get_accounts(self) -> list:
+        """获取账号列表"""
+        with self.lock:
+            return [acc.to_dict() for acc in self.config.mimo_accounts]
+
     def update_config(self, new_config: dict):
         """更新配置"""
         with self.lock:

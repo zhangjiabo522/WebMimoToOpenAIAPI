@@ -6,11 +6,111 @@ from .config import MimoAccount
 
 
 def parse_curl(curl_command: str) -> Optional[MimoAccount]:
+    """解析cURL命令提取Mimo账号凭证"""
+    try:
+        with open('/tmp/parse_debug.log', 'w') as f:
+            f.write(f"Input: {repr(curl_command[:200])}\n")
+    except:
+        pass
+    
+    account = {
+        'service_token': '',
+        'user_id': '',
+        'xiaomichatbot_ph': ''
+    }
+
+    # 预处理PowerShell格式
+    clean = curl_command
+    clean = re.sub(r'\^\s*\n', '', clean)
+    clean = clean.replace('^\"', '"')
+    clean = clean.replace(r'^\^"', '"')
+    clean = clean.replace(r'^\"', '"')
+    clean = clean.replace('\\"', '"')
+    clean = clean.replace('%^', '%')
+    clean = clean.replace('^', '')
+    
+    try:
+        with open('/tmp/parse_debug.log', 'a') as f:
+            f.write(f"Clean: {repr(clean[:200])}\n")
+    except:
+        pass
+
+    # 提取cookie
+    cookie_match = re.search(r'(?:-b|--cookie)\s+\'(.+)$', clean)
+    if not cookie_match:
+        cookie_match = re.search(r'(?:-b|--cookie)\s+"(.+)$', clean)
+    if not cookie_match:
+        return None
+
+    cookies = cookie_match.group(1)
+    
+    # 直接从cookie字符串提取 (不依赖引号)
+    st = re.search(r'serviceToken=([^;]+)', cookies)
+    uid = re.search(r'userId=(\d+)', cookies)
+    ph = re.search(r'xiaomichatbot_ph=([^;]+)', cookies)
+    
+    if st:
+        account['service_token'] = st.group(1).strip().strip('"')
+    if uid:
+        account['user_id'] = uid.group(1)
+    if ph:
+        account['xiaomichatbot_ph'] = ph.group(1).strip().strip('"')
+
+    if not account['service_token']:
+        return None
+
+    return MimoAccount(**account)
+
+    # 提取cookie字符串（支持多种格式）
+    cookie_match = re.search(r"(?:-b|--cookie)\s+'(.+)$", clean)
+    if not cookie_match:
+        cookie_match = re.search(r'(?:-b|--cookie)\s+"(.+)$', clean)
+    if not cookie_match:
+        cookie_match = re.search(r"-H\s+'[Cc]ookie:\s*(.+)$", clean)
+    if not cookie_match:
+        cookie_match = re.search(r'-H\s+"[Cc]ookie:\s*(.+)$', clean)
+    if not cookie_match:
+        return None
+
+    cookies = cookie_match.group(1)
+
+    # 提取serviceToken (支持带引号和不带引号)
+    service_token_match = re.search(r'serviceToken="([^"]+)"', cookies)
+    if not service_token_match:
+        service_token_match = re.search(r'serviceToken=([^;]+)', cookies)
+    if service_token_match:
+        account['service_token'] = service_token_match.group(1).strip()
+
+    # 提取userId
+    user_id_match = re.search(r'userId=(\d+)', cookies)
+    if user_id_match:
+        account['user_id'] = user_id_match.group(1)
+
+    # 提取xiaomichatbot_ph (支持带引号和不带引号)
+    ph_match = re.search(r'xiaomichatbot_ph="([^"]+)"', cookies)
+    if not ph_match:
+        ph_match = re.search(r'xiaomichatbot_ph=([^;]+)', cookies)
+    if ph_match:
+        account['xiaomichatbot_ph'] = ph_match.group(1).strip()
+
+    # 验证必需字段
+    if not account['service_token']:
+        return None
+
+    return MimoAccount(**account)
+
+
+def parse_url(url: str) -> Optional[MimoAccount]:
     """
-    解析cURL命令提取Mimo账号凭证
+    解析从浏览器复制的URL或原始URL提取Mimo账号凭证
+
+    支持格式:
+    - 浏览器开发者工具复制的原始请求
+    - 包含cookie的URL（如 mi.com/superweb/chat?cookie=...）
+    - cURL命令格式的URL
 
     Args:
-        curl_command: cURL命令字符串
+        url: URL字符串或原始请求文本
 
     Returns:
         MimoAccount对象或None
@@ -21,33 +121,46 @@ def parse_curl(curl_command: str) -> Optional[MimoAccount]:
         'xiaomichatbot_ph': ''
     }
 
-    # 提取cookies（支持多种格式）
-    cookie_match = re.search(r"(?:-b|--cookie)\s+'([^']+)'", curl_command)
-    if not cookie_match:
-        cookie_match = re.search(r'(?:-b|--cookie)\s+"([^"]+)"', curl_command)
-    if not cookie_match:
-        cookie_match = re.search(r"-H\s+'[Cc]ookie:\s*([^']+)'", curl_command)
-    if not cookie_match:
-        cookie_match = re.search(r'-H\s+"[Cc]ookie:\s*([^"]+)"', curl_command)
-    if not cookie_match:
-        return None
+    # 尝试从URL查询参数中提取
+    if '?' in url:
+        query_part = url.split('?')[1] if '://' in url else url.split('?')[1]
+        # 提取serviceToken
+        match = re.search(r'serviceToken=([^&\s"]+)', query_part)
+        if match:
+            account['service_token'] = match.group(1)
+        # 提取userId
+        match = re.search(r'userId=([^&\s"]+)', query_part)
+        if match:
+            account['user_id'] = match.group(1)
+        # 提取xiaomichatbot_ph
+        match = re.search(r'xiaomichatbot_ph=([^&\s"]+)', query_part)
+        if match:
+            account['xiaomichatbot_ph'] = match.group(1)
 
-    cookies = cookie_match.group(1)
+    # 尝试直接从文本中提取（支持多种格式的cookie字符串）
+    if not account['service_token']:
+        # 格式: serviceToken=xxx; userId=xxx; xiaomichatbot_ph=xxx
+        match = re.search(r'serviceToken=([^;]+)', url)
+        if match:
+            account['service_token'] = match.group(1).strip()
+        match = re.search(r'userId=(\d+)', url)
+        if match:
+            account['user_id'] = match.group(1)
+        match = re.search(r'xiaomichatbot_ph=([^;]+)', url)
+        if match:
+            account['xiaomichatbot_ph'] = match.group(1).strip()
 
-    # 提取serviceToken
-    service_token_match = re.search(r'serviceToken="([^"]+)"', cookies)
-    if service_token_match:
-        account['service_token'] = service_token_match.group(1)
-
-    # 提取userId
-    user_id_match = re.search(r'userId=(\d+)', cookies)
-    if user_id_match:
-        account['user_id'] = user_id_match.group(1)
-
-    # 提取xiaomichatbot_ph
-    ph_match = re.search(r'xiaomichatbot_ph="([^"]+)"', cookies)
-    if ph_match:
-        account['xiaomichatbot_ph'] = ph_match.group(1)
+    # 尝试从cookie头格式提取: Cookie: serviceToken="xxx"; userId=xxx; xiaomichatbot_ph="xxx"
+    if not account['service_token']:
+        match = re.search(r'serviceToken["\s:]=["\s]?([^";\s]+)', url)
+        if match:
+            account['service_token'] = match.group(1)
+        match = re.search(r'userId["\s:]=["\s]?(\d+)', url)
+        if match:
+            account['user_id'] = match.group(1)
+        match = re.search(r'xiaomichatbot_ph["\s:]=["\s]?([^";\s]+)', url)
+        if match:
+            account['xiaomichatbot_ph'] = match.group(1)
 
     # 验证必需字段
     if not account['service_token']:
@@ -100,3 +213,52 @@ def build_query_from_messages(messages: list, max_messages: int = 10, max_conten
         query_parts.append(f"{msg.role}: {content}")
 
     return "\n".join(query_parts)
+
+
+def build_curl_command(account: MimoAccount, api_url: str = "http://localhost:9999") -> str:
+    """
+    从账号构建cURL命令示例
+
+    Args:
+        account: MimoAccount对象
+        api_url: API地址
+
+    Returns:
+        cURL命令字符串
+    """
+    cookie = f'serviceToken="{account.service_token}"; userId={account.user_id}; xiaomichatbot_ph="{account.xiaomichatbot_ph}"'
+    return f"""curl -X POST "{api_url}/v1/chat/completions" \\
+  -H "Authorization: Bearer sk-default" \\
+  -H "Content-Type: application/json" \\
+  -d '{{
+    "model": "mimo-2",
+    "messages": [{{"role": "user", "content": "你好"}}
+  ]
+}}'"""
+
+
+def build_bash_script(account: MimoAccount, api_url: str = "http://localhost:9999") -> str:
+    """
+    从账号构建bash脚本示例
+
+    Args:
+        account: MimoAccount对象
+        api_url: API地址
+
+    Returns:
+        bash脚本字符串
+    """
+    cookie = f'serviceToken="{account.service_token}"; userId={account.user_id}; xiaomichatbot_ph="{account.xiaomichatbot_ph}"'
+    return f"""#!/bin/bash
+
+API_URL="{api_url}"
+API_KEY="sk-default"
+
+curl -X POST "$API_URL/v1/chat/completions" \\
+  -H "Authorization: Bearer $API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{{
+    "model": "mimo-2",
+    "messages": [{{"role": "user", "content": "你好"}}
+  ]
+}}'"""

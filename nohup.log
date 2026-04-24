@@ -1,0 +1,27 @@
+INFO:     Started server process [4070550]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:9999 (Press CTRL+C to quit)
+
+╔══════════════════════════════════════════════════════════╗
+║                    Mimo2API Python                       ║
+║          将小米 Mimo AI 转换为 OpenAI 兼容 API           ║
+╚══════════════════════════════════════════════════════════╝
+
+🚀 服务器启动中...
+📍 地址: http://localhost:9999
+📊 管理界面: http://localhost:9999
+📡 API端点: http://localhost:9999/v1/chat/completions
+📖 API文档: http://localhost:9999/docs
+
+配置信息:
+  - API Keys: 1 个
+  - Mimo账号: 1 个
+
+按 Ctrl+C 停止服务器
+
+INFO:     127.0.0.1:36514 - "GET /v1/models HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [4070550]

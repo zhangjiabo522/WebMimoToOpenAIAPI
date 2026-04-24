@@ -7,7 +7,6 @@
     <style>
         :root {
             --primary: #6366f1;
-            --primary-hover: #4f46e5;
             --success: #10b981;
             --danger: #ef4444;
             --bg: #0f172a;
@@ -18,307 +17,110 @@
             --border: #475569;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, var(--bg) 0%, #1a1a2e 100%);
-            min-height: 100vh;
-            color: var(--text);
-        }
-        .container { max-width: 900px; margin: 0 auto; padding: 20px; }
-        .header { text-align: center; margin-bottom: 30px; }
-        .header h1 {
-            font-size: 2rem;
-            background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .header p { color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; }
-        .card {
-            background: var(--bg-card);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-            border: 1px solid rgba(255,255,255,0.05);
-        }
-        .card h2 {
-            font-size: 1.1rem;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .card h2::before {
-            content: '';
-            width: 4px;
-            height: 18px;
-            background: var(--primary);
-            border-radius: 2px;
-        }
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-            gap: 12px;
-        }
-        .stat-item {
-            background: var(--bg-input);
-            padding: 14px;
-            border-radius: 10px;
-            text-align: center;
-        }
-        .stat-value { font-size: 1.4rem; font-weight: 700; color: var(--primary); }
-        .stat-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; margin-top: 4px; }
-        .log-box {
-            background: #0d1117;
-            border-radius: 8px;
-            padding: 12px;
-            height: 250px;
-            overflow-y: auto;
-            font-family: 'SF Mono', Monaco, monospace;
-            font-size: 12px;
-            line-height: 1.6;
-        }
-        .log-entry { margin-bottom: 6px; border-bottom: 1px solid #21262d; padding-bottom: 6px; }
-        .log-time { color: #8b949e; }
-        .log-success { color: #7ee787; }
-        .log-error { color: #ff7b72; }
-        .log-info { color: #79c0ff; }
-        .log-tokens { color: #d2a8ff; }
-        input, textarea {
-            width: 100%;
-            padding: 10px 14px;
-            background: var(--bg-input);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            color: var(--text);
-            font-size: 13px;
-            margin-bottom: 10px;
-            outline: none;
-        }
-        textarea { height: 100px; font-family: monospace; font-size: 12px; resize: vertical; }
-        button {
-            padding: 8px 16px;
-            border: none;
-            border-radius: 6px;
-            font-size: 13px;
-            cursor: pointer;
-            margin-right: 8px;
-            margin-bottom: 8px;
-        }
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-success { background: var(--success); color: white; }
-        .btn-danger { background: var(--danger); color: white; font-size: 11px; padding: 5px 10px; }
-        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
-        .account {
-            background: var(--bg-input);
-            padding: 12px;
-            border-radius: 8px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-        }
-        .account-id { font-family: monospace; font-size: 13px; }
-        .status {
-            padding: 10px 14px;
-            border-radius: 8px;
-            margin: 10px 0;
-            font-size: 13px;
-        }
-        .status.success { background: rgba(16,185,129,0.15); color: #34d399; }
-        .status.error { background: rgba(239,68,68,0.15); color: #f87171; }
-        .status.loading { background: rgba(99,102,241,0.15); color: #a5b4fc; }
-        .models { display: flex; flex-wrap: wrap; gap: 8px; }
-        .model-tag {
-            background: var(--bg-input);
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            font-family: monospace;
-        }
-        .hidden { display: none; }
-        details { margin-bottom: 12px; }
-        summary { cursor: pointer; color: var(--primary); font-size: 13px; }
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-        .card-header h2 { margin-bottom: 0; }
-        .btn-refresh {
-            background: transparent;
-            border: 1px solid var(--border);
-            color: var(--text);
-            padding: 6px 12px;
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .btn-refresh:hover { background: var(--bg-input); }
-        .tabs { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
-        .tab {
-            padding: 10px 20px;
-            cursor: pointer;
-            color: var(--text-muted);
-            border-bottom: 2px solid transparent;
-            margin-bottom: -1px;
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); min-height: 100vh; color: var(--text); }
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .header h1 { font-size: 1.8rem; color: var(--primary); margin-bottom: 5px; }
+        .header a { color: var(--primary); }
+        .card { background: var(--bg-card); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+        .card h2 { font-size: 1rem; margin-bottom: 12px; color: var(--text-muted); }
+        
+        /* Tabs */
+        .tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+        .tab { flex: 1; text-align: center; padding: 12px; cursor: pointer; color: var(--text-muted); border-bottom: 2px solid transparent; }
         .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+        
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-        @media (max-width: 480px) {
-            .stats-grid { grid-template-columns: repeat(2, 1fr); }
-        }
+        
+        /* Stats */
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        .stat-item { background: var(--bg-input); padding: 12px; border-radius: 8px; text-align: center; }
+        .stat-value { font-size: 1.2rem; font-weight: bold; }
+        .stat-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+        
+        /* Form */
+        input, textarea { width: 100%; background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; padding: 10px; color: var(--text); margin-bottom: 10px; font-size: 14px; }
+        textarea { min-height: 80px; resize: vertical; }
+        label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 6px; }
+        
+        button { background: var(--primary); color: white; border: none; border-radius: 6px; padding: 10px 20px; cursor: pointer; font-size: 14px; }
+        button:hover { opacity: 0.9; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+        .btn-danger { background: var(--danger); padding: 6px 12px; font-size: 12px; }
+        
+        .status { padding: 10px; border-radius: 6px; margin-top: 10px; font-size: 13px; display: none; }
+        .status.success { background: rgba(16,185,129,0.2); color: #34d399; display: block; }
+        .status.error { background: rgba(239,68,68,0.2); color: #f87171; display: block; }
+        
+        .account { display: flex; justify-content: space-between; align-items: center; background: var(--bg-input); padding: 12px; border-radius: 6px; margin-bottom: 8px; }
+        .account-id { font-family: monospace; font-size: 13px; }
+        
+        .log-box { background: var(--bg-input); border-radius: 6px; padding: 12px; height: 200px; overflow-y: auto; font-family: monospace; font-size: 12px; }
+        
+        .models { display: flex; flex-wrap: wrap; gap: 8px; }
+        .model-tag { background: var(--bg-input); padding: 6px 12px; border-radius: 6px; font-size: 12px; font-family: monospace; }
+        
+        details { margin-bottom: 12px; }
+        summary { cursor: pointer; color: var(--primary); font-size: 0.85rem; }
+        ol { margin: 8px 0 0 20px; font-size: 0.85rem; color: var(--text-muted); }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>WebMimoToOpenAIAPI</h1>
-            <p><a href="https://github.com/zhangjiabo522/WebMimoToOpenAIAPI" target="_blank" style="color:var(--primary)">WebMimoToOpenAIAPI</a> - 小米 MiMo 模型 OpenAI 兼容 API 代理</p>
+            <p><a href="https://github.com/zhangjiabo522/WebMimoToOpenAIAPI" target="_blank">GitHub</a></p>
         </div>
 
         <!-- Tabs -->
         <div class="tabs">
-            <div class="tab active" onclick="switchTab('stats')">统计</div>
-            <div class="tab" onclick="switchTab('settings')">设置</div>
-            <div class="tab" onclick="switchTab('accounts')">账号</div>
+            <div class="tab active" data-tab="stats">统计</div>
+            <div class="tab" data-tab="settings">设置</div>
+            <div class="tab" data-tab="accounts">账号</div>
         </div>
 
         <!-- Stats Tab -->
         <div id="tab-stats" class="tab-content active">
-            <!-- 用量统计 -->
             <div class="card">
-            <div class="stat-item" style="grid-column: span 2">
-                    <div class="stat-value" id="total-requests">0</div>
-                    <div class="stat-label">累计请求</div>
-                </div>
-                <div class="stat-item" style="grid-column: span 2">
-                    <div class="stat-value" id="total-tokens">0</div>
-                    <div class="stat-label">累计 Tokens</div>
-                </div>
-            </div>
-            <button class="btn-outline" onclick="resetUsage()" style="margin-top:12px">重置统计</button>
-        </div>
-
-        <!-- 实时日志 -->
-        <div class="card">
-            <div class="card-header">
-                <h2>实时日志</h2>
-                <button class="btn-refresh" onclick="clearLogs()">清空</button>
-            </div>
-            <div id="logs" class="log-box"></div>
-        </div>
-
-        <!-- 可用模型 -->
-        <div class="card">
-            <h2>可用模型</h2>
-            <div id="models" class="models"></div>
-        </div>
-        </div>
-
-        <!-- Settings Tab -->
-        <div class="card">
-            <div class="card-header">
                 <h2>用量统计</h2>
-                <button class="btn-refresh" onclick="loadStats()">↻ 刷新</button>
+                <div class="stats-grid">
+                    <div class="stat-item"><div class="stat-value" id="today-requests">0</div><div class="stat-label">今日请求</div></div>
+                    <div class="stat-item"><div class="stat-value" id="today-tokens">0</div><div class="stat-label">今日 Tokens</div></div>
+                    <div class="stat-item"><div class="stat-value" id="avg-time">0s</div><div class="stat-label">平均响应</div></div>
+                    <div class="stat-item"><div class="stat-value" id="total-requests">0</div><div class="stat-label">累计请求</div></div>
+                    <div class="stat-item"><div class="stat-value" id="total-tokens">0</div><div class="stat-label">累计 Tokens</div></div>
+                    <div class="stat-item"><div class="stat-value" id="today-input">0</div><div class="stat-label">输入 Tokens</div></div>
+                </div>
+                <button class="btn-outline" onclick="resetUsage()" style="margin-top:12px;width:100%">重置统计</button>
             </div>
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <div class="stat-value" id="today-requests">0</div>
-                    <div class="stat-label">今日请求</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="today-tokens">0</div>
-                    <div class="stat-label">今日 Tokens</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="today-input">0</div>
-                    <div class="stat-label">输入 Tokens</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="today-output">0</div>
-                    <div class="stat-label">输出 Tokens</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="avg-time">0s</div>
-                    <div class="stat-label">平均响应</div>
-                </div>
-                <div class="stat-item" style="grid-column: span 2">
-                    <div class="stat-value" id="total-requests">0</div>
-                    <div class="stat-label">累计请求</div>
-                </div>
-                <div class="stat-item" style="grid-column: span 2">
-                    <div class="stat-value" id="total-tokens">0</div>
-                    <div class="stat-label">累计 Tokens</div>
-                </div>
-            </div>
-            <button class="btn-outline" onclick="resetUsage()" style="margin-top:12px">重置统计</button>
-        </div>
-
-        <!-- 实时日志 -->
-        <div class="card">
-            <div class="card-header">
+            
+            <div class="card">
                 <h2>实时日志</h2>
-                <button class="btn-refresh" onclick="clearLogs()">清空</button>
+                <div id="logs" class="log-box"></div>
             </div>
-            <div id="logs" class="log-box"></div>
-        </div>
-
-        <!-- 可用模型 -->
-        <div class="card">
-            <h2>可用模型</h2>
-            <div id="models" class="models"></div>
-        </div>
-
-        <!-- API Keys -->
-        <div class="card">
-            <h2>API Keys</h2>
-            <label style="font-size:11px;color:var(--text-muted)">多个 Key 用逗号分隔</label>
-            <input type="text" id="apiKeys" placeholder="sk-key1, sk-key2">
-            <button class="btn-primary" onclick="saveKeys()">保存</button>
-            <div id="keysResult"></div>
-        </div>
-
-        <!-- 添加账号 -->
-        <div class="card">
-            <h2>添加账号</h2>
-            <details>
-                <summary>如何获取凭证?</summary>
-                <ol style="margin:10px 0;padding-left:20px;color:var(--text-muted);font-size:13px">
-                    <li>登录 <a href="https://aistudio.xiaomimimo.com" target="_blank" style="color:var(--primary)">aistudio.xiaomimimo.com</a></li>
-                    <li>F12 → Network → 发送消息 → 找到 chat 请求</li>
-                    <li>右键 → Copy as cURL （cmd）→ 粘贴到下方</li>
-                </ol>
-            </details>
-            <textarea id="curl" placeholder="粘贴 cURL 命令..."></textarea>
-            <button class="btn-primary" onclick="parse()">解析</button>
-            <div id="parseResult"></div>
-        </div>
-
-        <!-- 账号列表 -->
-        <div class="card">
-            <h2>账号列表</h2>
-            <div id="accounts"></div>
-        </div>
+            
+            <div class="card">
+                <h2>可用模型</h2>
+                <div id="models" class="models"></div>
+            </div>
         </div>
 
         <!-- Settings Tab -->
         <div id="tab-settings" class="tab-content">
             <div class="card">
                 <h2>系统设置</h2>
-                <label style="font-size:11px;color:var(--text-muted)">系统提示词 (每次请求都会带上)</label>
+                <label>系统提示词 (每次请求都会带上)</label>
                 <textarea id="systemPrompt" placeholder="你是一个有用的AI助手..."></textarea>
-                <button class="btn-primary" onclick="saveSettings()">保存</button>
+                <button onclick="saveSettings()">保存</button>
                 <div id="settingsResult"></div>
             </div>
-
+            
             <div class="card">
                 <h2>API Keys</h2>
-                <label style="font-size:11px;color:var(--text-muted)">多个 Key 用逗号分隔</label>
+                <label>多个 Key 用逗号分隔</label>
                 <input type="text" id="apiKeys" placeholder="sk-key1, sk-key2">
-                <button class="btn-primary" onclick="saveKeys()">保存</button>
+                <button onclick="saveKeys()">保存</button>
                 <div id="keysResult"></div>
             </div>
         </div>
@@ -329,17 +131,17 @@
                 <h2>添加账号</h2>
                 <details>
                     <summary>如何获取凭证?</summary>
-                    <ol style="margin:10px 0;padding-left:20px;color:var(--text-muted);font-size:13px">
-                        <li>登录 <a href="https://aistudio.xiaomimimo.com" target="_blank" style="color:var(--primary)">aistudio.xiaomimimo.com</a></li>
+                    <ol>
+                        <li>登录 <a href="https://aistudio.xiaomimimo.com" target="_blank">aistudio.xiaomimimo.com</a></li>
                         <li>F12 → Network → 发送消息 → 找到 chat 请求</li>
-                        <li>右键 → Copy as cURL （cmd）→ 粘贴到下方</li>
+                        <li>右键 → Copy as cURL → 粘贴到下方</li>
                     </ol>
                 </details>
                 <textarea id="curl" placeholder="粘贴 cURL 命令..."></textarea>
-                <button class="btn-primary" onclick="parse()">解析</button>
+                <button onclick="parse()">解析</button>
                 <div id="parseResult"></div>
             </div>
-
+            
             <div class="card">
                 <h2>账号列表</h2>
                 <div id="accounts"></div>
@@ -348,15 +150,18 @@
     </div>
 
     <script>
-        let cfg = { api_keys: '', mimo_accounts: [], system_prompt: '', default_model: 'mimo-v2.5-pro' }, parsed = null;
-
-        function switchTab(tab) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            event.target.classList.add('active');
-            document.getElementById('tab-' + tab).classList.add('active');
-        }
-
+        let cfg = { api_keys: '', mimo_accounts: [], system_prompt: '' };
+        
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                this.classList.add('active');
+                document.getElementById('tab-' + this.dataset.tab).classList.add('active');
+            });
+        });
+        
         async function load() {
             cfg = await (await fetch('/api/config')).json();
             document.getElementById('apiKeys').value = cfg.api_keys || '';
@@ -366,153 +171,98 @@
             loadModels();
             connectLogs();
         }
-
+        
         async function saveSettings() {
             cfg.system_prompt = document.getElementById('systemPrompt').value;
             await fetch('/api/config', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(cfg) });
             show('settingsResult', 'success', '已保存');
         }
-
+        
         async function saveKeys() {
             cfg.api_keys = document.getElementById('apiKeys').value;
             await fetch('/api/config', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(cfg) });
             show('keysResult', 'success', '已保存');
         }
-
+        
         async function loadStats() {
             try {
                 const s = await (await fetch('/api/usage')).json();
                 document.getElementById('today-requests').textContent = s.today.requests;
                 document.getElementById('today-tokens').textContent = fmtNum(s.today.total_tokens);
                 document.getElementById('today-input').textContent = fmtNum(s.today.prompt_tokens);
-                document.getElementById('today-output').textContent = fmtNum(s.today.completion_tokens);
                 document.getElementById('avg-time').textContent = s.today.avg_seconds + 's';
                 document.getElementById('total-requests').textContent = fmtNum(s.total.requests);
                 document.getElementById('total-tokens').textContent = fmtNum(s.total.total_tokens);
             } catch(e) {}
         }
-
+        
         async function loadModels() {
             try {
                 const d = await (await fetch('/v1/models')).json();
-                document.getElementById('models').innerHTML = d.data.map(m => `<div class="model-tag">${m.id}</div>`).join('');
+                document.getElementById('models').innerHTML = d.data.map(m => '<div class="model-tag">' + m.id + '</div>').join('');
             } catch(e) {}
         }
-
-        function fmtNum(n) {
-            if (n >= 1000) return (n/1000).toFixed(1) + 'k';
-            return n;
-        }
-
-        function show(id, cls, msg) {
-            const d = document.getElementById(id);
-            d.className = 'status ' + cls;
-            d.textContent = msg;
-            d.style.display = 'block';
-            setTimeout(() => d.style.display = 'none', 2000);
-        }
-
+        
+        function fmtNum(n) { return n >= 1000 ? (n/1000).toFixed(1) + 'k' : n; }
+        
         function renderAccounts() {
             const d = document.getElementById('accounts');
             if (cfg.mimo_accounts?.length) {
-                d.innerHTML = cfg.mimo_accounts.map((a, i) => `
-                    <div class="account">
-                        <span class="account-id">ID: ${a.user_id}</span>
-                        <button class="btn-danger" onclick="del(${i})">删除</button>
-                    </div>
-                `).join('');
+                d.innerHTML = cfg.mimo_accounts.map((a, i) => '<div class="account"><span class="account-id">ID: ' + a.user_id + '</span><button class="btn-danger" onclick="del(' + i + ')">删除</button></div>').join('');
             } else {
                 d.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:20px">暂无账号</div>';
             }
         }
-
-        async function saveKeys() {
-            cfg.api_keys = document.getElementById('apiKeys').value;
-            await fetch('/api/config', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(cfg) });
-            show('keysResult', 'success', '已保存');
-            setTimeout(() => document.getElementById('keysResult').innerHTML = '', 2000);
+        
+        function show(id, cls, msg) {
+            const d = document.getElementById(id);
+            d.className = 'status ' + cls;
+            d.textContent = msg;
+            setTimeout(() => d.className = 'status', 2000);
         }
-
+        
         async function parse() {
             const curl = document.getElementById('curl').value;
-            if (!curl.trim()) { show('parseResult', 'error', '请输入 cURL'); return; }
-            show('parseResult', 'loading', '解析中...');
-            const r = await fetch('/api/parse-curl', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({curl}) });
-            if (!r.ok) { show('parseResult', 'error', '解析失败'); return; }
-            parsed = await r.json();
-            document.getElementById('parseResult').innerHTML = `
-                <div class="status success">解析成功 - ID: ${parsed.user_id}</div>
-                <div style="margin-top:10px">
-                    <button class="btn-outline" onclick="test()">测试</button>
-                    <button class="btn-success" onclick="save()">添加</button>
-                </div>
-                <div id="testR"></div>
-            `;
+            if (!curl) return;
+            try {
+                const res = await (await fetch('/api/parse-curl', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({curl}) })).json();
+                if (res.service_token) {
+                    cfg.mimo_accounts.push(res);
+                    await fetch('/api/config', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(cfg) });
+                    renderAccounts();
+                    show('parseResult', 'success', '添加成功');
+                } else {
+                    show('parseResult', 'error', '解析失败');
+                }
+            } catch(e) { show('parseResult', 'error', '解析失败'); }
         }
-
-        async function test() {
-            show('testR', 'loading', '测试中...');
-            const r = await (await fetch('/api/test-account', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(parsed) })).json();
-            show('testR', r.success ? 'success' : 'error', r.success ? '连接成功' : '失败: ' + (r.error||'').slice(0,80));
-        }
-
-        async function save() {
-            if (!parsed) return;
-            cfg.mimo_accounts = cfg.mimo_accounts || [];
-            cfg.mimo_accounts.push(parsed);
-            await fetch('/api/config', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(cfg) });
-            parsed = null;
-            document.getElementById('curl').value = '';
-            show('parseResult', 'success', '已添加');
-            load();
-        }
-
+        
         async function del(i) {
             if (!confirm('确定删除?')) return;
             cfg.mimo_accounts.splice(i, 1);
             await fetch('/api/config', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(cfg) });
-            load();
+            renderAccounts();
         }
-
+        
         async function resetUsage() {
-            if (!confirm('重置统计?')) return;
+            if (!confirm('确定重置?')) return;
             await fetch('/api/usage/reset', { method: 'POST' });
             loadStats();
         }
-
-        function clearLogs() {
-            document.getElementById('logs').innerHTML = '';
-        }
-
-        function show(id, type, msg) {
-            document.getElementById(id).innerHTML = `<div class="status ${type}">${msg}</div>`;
-        }
-
-        function addLog(time, type, msg) {
-            const logs = document.getElementById('logs');
-            const entry = document.createElement('div');
-            entry.className = 'log-entry';
-            entry.innerHTML = `<span class="log-time">${time}</span> <span class="log-${type}">${msg}</span>`;
-            logs.insertBefore(entry, logs.firstChild);
-            if (logs.children.length > 100) logs.removeChild(logs.lastChild);
-        }
-
+        
         function connectLogs() {
-            const ws = new EventSource('/api/logs');
-            ws.onmessage = function(e) {
+            const es = new EventSource('/api/logs');
+            es.onmessage = function(e) {
                 try {
-                    const data = JSON.parse(e.data);
-                    addLog(data.time, data.type, data.msg);
-                    if (data.type === 'success') loadStats();
-                } catch(err) {}
-            };
-            ws.onerror = function() {
-                setTimeout(connectLogs, 3000);
+                    const d = JSON.parse(e.data);
+                    const box = document.getElementById('logs');
+                    box.innerHTML = box.innerHTML + '<div>' + (d.time || '') + ' ' + d.msg + '</div>';
+                    box.scrollTop = box.scrollHeight;
+                } catch(e) {}
             };
         }
-
+        
         load();
-        setInterval(loadStats, 1000);
     </script>
 </body>
 </html>

@@ -465,7 +465,7 @@ async def stream_logs():
                     entry = await asyncio.wait_for(queue.get(), timeout=30)
                     yield f"data: {entry}\n\n"
                 except asyncio.TimeoutError:
-                    yield f"data: {json.dumps({'time': '', 'type': 'info', 'msg': 'ping'})}\n\n"
+                    pass
         finally:
             log_listeners.remove(queue)
     return StreamingResponse(event_stream(), media_type="text/event-stream")

@@ -16,8 +16,8 @@ class MimoClient:
     # 支持的模型列表
     AVAILABLE_MODELS = [
         "mimo-v2.5-pro",
-        "mimo-v2-flash-studio",
-        "mimo-2",
+        "mimo-v2.5",
+        "mimo-v2-flash",
     ]
 
     def __init__(self, account: MimoAccount):

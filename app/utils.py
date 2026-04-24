@@ -231,7 +231,7 @@ def build_curl_command(account: MimoAccount, api_url: str = "http://localhost:99
   -H "Authorization: Bearer sk-default" \\
   -H "Content-Type: application/json" \\
   -d '{{
-    "model": "mimo-2",
+    "model": "mimo-v2.5-pro",
     "messages": [{{"role": "user", "content": "你好"}}
   ]
 }}'"""
@@ -258,7 +258,7 @@ curl -X POST "$API_URL/v1/chat/completions" \\
   -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{{
-    "model": "mimo-2",
+    "model": "mimo-v2.5-pro",
     "messages": [{{"role": "user", "content": "你好"}}
   ]
 }}'"""

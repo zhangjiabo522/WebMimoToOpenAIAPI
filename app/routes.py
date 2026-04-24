@@ -77,7 +77,7 @@ async def chat_completions(
     client = MimoClient(account)
 
     # 获取模型
-    model = request.model.replace("gpt-", "").replace("4o", "mimo-v2.5-pro").replace("4", "mimo-v2.5-pro").replace("3.5", "mimo-v2-flash-studio")
+    model = request.model.replace("gpt-", "").replace("4o", "mimo-v2.5-pro").replace("4", "mimo-v2.5-pro").replace("3.5", "mimo-v2-flash").replace("2", "mimo-v2.5")
     if model not in MimoClient.AVAILABLE_MODELS:
         model = "mimo-v2.5-pro"
 
@@ -193,7 +193,7 @@ async def responses_api(
     client = MimoClient(account)
 
     # 获取模型
-    model = request.model.replace("gpt-", "").replace("4o", "mimo-v2.5-pro").replace("4", "mimo-v2.5-pro").replace("3.5", "mimo-v2-flash-studio")
+    model = request.model.replace("gpt-", "").replace("4o", "mimo-v2.5-pro").replace("4", "mimo-v2.5-pro").replace("3.5", "mimo-v2-flash").replace("2", "mimo-v2.5")
     if model not in MimoClient.AVAILABLE_MODELS:
         model = "mimo-v2.5-pro"
 
@@ -420,8 +420,8 @@ async def list_models():
         "object": "list",
         "data": [
             {"id": "mimo-v2.5-pro", "object": "model", "created": 1700000000, "owned_by": "xiaomi"},
-            {"id": "mimo-v2-flash-studio", "object": "model", "created": 1700000000, "owned_by": "xiaomi"},
-            {"id": "mimo-2", "object": "model", "created": 1700000000, "owned_by": "xiaomi"},
+            {"id": "mimo-v2.5", "object": "model", "created": 1700000000, "owned_by": "xiaomi"},
+            {"id": "mimo-v2-flash", "object": "model", "created": 1700000000, "owned_by": "xiaomi"},
         ]
     }
 

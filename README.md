@@ -132,9 +132,9 @@ curl -X POST http://localhost:9999/v1/chat/completions \
 
 ## 支持的模型
 
-- `mimo-v2.5-pro` - 最新专业版
-- `mimo-v2-flash-studio` - 快速版
-- `mimo-2` - 标准版
+- `mimo-v2.5-pro` - 专业版
+- `mimo-v2.5` - 标准版
+- `mimo-v2-flash` - 快速版
 
 ## 添加账号
 

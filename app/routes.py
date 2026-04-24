@@ -638,6 +638,17 @@ async def update_config(request: Request):
         raise HTTPException(status_code=400, detail={"error": "invalid"})
 
 
+@router.post("/api/test-email")
+async def test_email():
+    """发送测试邮件"""
+    from .email import send_test_email
+    success = send_test_email()
+    if success:
+        return {"status": "ok", "message": "邮件已发送"}
+    else:
+        return {"status": "error", "message": "发送失败，请检查配置"}
+
+
 @router.post("/api/parse-curl")
 async def parse_curl_command(request: ParseCurlRequest):
     """解析cURL命令"""

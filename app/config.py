@@ -26,6 +26,13 @@ class Config:
     system_prompt: str = ""
     default_model: str = "mimo-v2.5-pro"
     account_mode: str = "random"
+    email_enabled: bool = False
+    email_host: str = ""
+    email_port: int = 587
+    email_user: str = ""
+    email_password: str = ""
+    email_from: str = ""
+    email_to: str = ""
 
     def __post_init__(self):
         if self.mimo_accounts is None:
@@ -37,7 +44,14 @@ class Config:
             "mimo_accounts": [acc.to_dict() for acc in self.mimo_accounts],
             "system_prompt": self.system_prompt,
             "default_model": self.default_model,
-            "account_mode": self.account_mode
+            "account_mode": self.account_mode,
+            "email_enabled": self.email_enabled,
+            "email_host": self.email_host,
+            "email_port": self.email_port,
+            "email_user": self.email_user,
+            "email_password": self.email_password,
+            "email_from": self.email_from,
+            "email_to": self.email_to
         }
 
 
@@ -68,7 +82,14 @@ class ConfigManager:
                     mimo_accounts=accounts,
                     system_prompt=data.get('system_prompt', ''),
                     default_model=data.get('default_model', 'mimo-v2.5-pro'),
-                    account_mode=data.get('account_mode', 'random')
+                    account_mode=data.get('account_mode', 'random'),
+                    email_enabled=data.get('email_enabled', False),
+                    email_host=data.get('email_host', ''),
+                    email_port=data.get('email_port', 587),
+                    email_user=data.get('email_user', ''),
+                    email_password=data.get('email_password', ''),
+                    email_from=data.get('email_from', ''),
+                    email_to=data.get('email_to', '')
                 )
         except Exception as e:
             print(f"加载配置失败: {e}")
@@ -130,7 +151,14 @@ class ConfigManager:
                 mimo_accounts=accounts,
                 system_prompt=new_config.get('system_prompt', ''),
                 default_model=new_config.get('default_model', 'mimo-v2.5-pro'),
-                account_mode=new_config.get('account_mode', 'random')
+                account_mode=new_config.get('account_mode', 'random'),
+                email_enabled=new_config.get('email_enabled', False),
+                email_host=new_config.get('email_host', ''),
+                email_port=new_config.get('email_port', 587),
+                email_user=new_config.get('email_user', ''),
+                email_password=new_config.get('email_password', ''),
+                email_from=new_config.get('email_from', ''),
+                email_to=new_config.get('email_to', '')
             )
             self.save()
 

@@ -126,6 +126,30 @@
             </div>
 
             <div class="card">
+                <h2>邮箱通知</h2>
+                <label>启用邮箱通知</label>
+                <select id="emailEnabled">
+                    <option value="false">禁用</option>
+                    <option value="true">启用</option>
+                </select>
+                <label>SMTP 服务器</label>
+                <input type="text" id="emailHost" placeholder="smtp.qq.com">
+                <label>SMTP 端口</label>
+                <input type="number" id="emailPort" value="587">
+                <label>邮箱账号</label>
+                <input type="text" id="emailUser" placeholder="user@example.com">
+                <label>邮箱密码/授权码</label>
+                <input type="password" id="emailPassword" placeholder="授权码">
+                <label>发件人</label>
+                <input type="text" id="emailFrom" placeholder="user@example.com">
+                <label>收件人</label>
+                <input type="text" id="emailTo" placeholder="to@example.com">
+                <button onclick="saveEmailSettings()">保存</button>
+                <button class="btn-outline" onclick="testEmail()" style="margin-left:8px">发送测试</button>
+                <div id="emailResult"></div>
+            </div>
+
+            <div class="card">
                 <h2>账号模式</h2>
                 <label>多账号调用方式</label>
                 <select id="accountMode" onchange="saveAccountMode()">
@@ -178,6 +202,12 @@
             document.getElementById('apiKeys').value = cfg.api_keys || '';
             document.getElementById('systemPrompt').value = cfg.system_prompt || '';
             document.getElementById('accountMode').value = cfg.account_mode || 'random';
+            document.getElementById('emailEnabled').value = cfg.email_enabled ? 'true' : 'false';
+            document.getElementById('emailHost').value = cfg.email_host || '';
+            document.getElementById('emailPort').value = cfg.email_port || 587;
+            document.getElementById('emailUser').value = cfg.email_user || '';
+            document.getElementById('emailFrom').value = cfg.email_from || '';
+            document.getElementById('emailTo').value = cfg.email_to || '';
             renderAccounts();
             loadStats();
             loadModels();
@@ -195,6 +225,27 @@
             cfg.api_keys = document.getElementById('apiKeys').value;
             await fetch('/api/config', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(cfg) });
             show('keysResult', 'success', '已保存');
+        }
+        
+        async function saveEmailSettings() {
+            cfg.email_enabled = document.getElementById('emailEnabled').value === 'true';
+            cfg.email_host = document.getElementById('emailHost').value;
+            cfg.email_port = parseInt(document.getElementById('emailPort').value) || 587;
+            cfg.email_user = document.getElementById('emailUser').value;
+            cfg.email_password = document.getElementById('emailPassword').value;
+            cfg.email_from = document.getElementById('emailFrom').value;
+            cfg.email_to = document.getElementById('emailTo').value;
+            await fetch('/api/config', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(cfg) });
+            show('emailResult', 'success', '已保存');
+        }
+        
+        async function testEmail() {
+            const res = await (await fetch('/api/test-email', { method: 'POST' })).json();
+            if (res.status === 'ok') {
+                show('emailResult', 'success', '测试邮件已发送');
+            } else {
+                show('emailResult', 'error', res.message || '发送失败');
+            }
         }
         
         async function saveAccountMode() {

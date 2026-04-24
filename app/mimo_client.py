@@ -65,7 +65,8 @@ class MimoClient:
                 "temperature": 0.8,
                 "topP": 0.95,
             },
-            "multiMedias": []
+            "multiMedias": [],
+            "attachments": []
         }
 
     async def test_connection(self) -> Tuple[bool, str]:

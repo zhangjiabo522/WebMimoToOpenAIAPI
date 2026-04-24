@@ -1,5 +1,6 @@
 # 声明本项目为二开原项目[出处](https://github.com/Water008/MiMo2API)原项目在此尊重开源喜欢的点点star谢谢啦
 # WebMimoToOpenAIAPI
+# [国内版教程](https://blog.jx.fyi/post.jb?id=10)
 
 将小米 MiMo AI WEB 模型转换为 OpenAI 兼容 API
 

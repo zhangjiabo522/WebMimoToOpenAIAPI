@@ -1,13 +1,13 @@
 """OpenAI API 数据模型"""
 
-from typing import List, Optional, Literal
+from typing import List, Optional, Literal, Union
 from pydantic import BaseModel, Field
 
 
 class OpenAIMessage(BaseModel):
     """OpenAI消息"""
     role: str
-    content: str
+    content: Union[str, List]
 
 
 class OpenAIRequest(BaseModel):

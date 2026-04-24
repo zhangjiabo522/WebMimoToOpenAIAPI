@@ -206,11 +206,23 @@ def build_query_from_messages(messages: list, max_messages: int = 10, max_conten
 
     query_parts = []
     for msg in messages:
-        content = msg.content
+        content = msg.get("content", "") if hasattr(msg, 'get') else msg.content
+        # 处理list类型的content (多模态)
+        if isinstance(content, list):
+            text_parts = []
+            for c in content:
+                if isinstance(c, dict):
+                    if c.get("type") == "text":
+                        text_parts.append(c.get("text", ""))
+                    elif c.get("type") == "image_url":
+                        text_parts.append("[图片]")
+                else:
+                    text_parts.append(str(c))
+            content = " ".join(text_parts)
         # 截断过长的内容
-        if len(content) > max_content_len:
+        if isinstance(content, str) and len(content) > max_content_len:
             content = content[:max_content_len] + "..."
-        query_parts.append(f"{msg.role}: {content}")
+        query_parts.append(f"{msg.get('role', 'user')}: {content}")
 
     return "\n".join(query_parts)
 

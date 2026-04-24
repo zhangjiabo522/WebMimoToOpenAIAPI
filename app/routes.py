@@ -248,30 +248,34 @@ async def stream_responses_response(client: MimoClient, query: str, model: str):
     completion_tokens = 0
     full_text = ""
     in_think = False
-    actual_response = ""  # 存储实际回复内容
+    actual_response = ""
+    seq = 0  # 序列号
 
     try:
         # 发送 response.created 事件
-        yield f"data: {json.dumps({'type': 'response.created', 'response': {'id': resp_id, 'object': 'response', 'created_at': int(time.time()), 'model': model, 'status': 'in_progress'}})}\n\n"
+        seq += 1
+        yield f"data: {json.dumps({'type': 'response.created', 'sequence_number': seq, 'response': {'id': resp_id, 'object': 'response', 'created_at': int(time.time()), 'model': model, 'status': 'in_progress'}})}\n\n"
+
+        # 发送 response.in_progress 事件
+        seq += 1
+        yield f"data: {json.dumps({'type': 'response.in_progress', 'sequence_number': seq, 'response': {'id': resp_id, 'object': 'response', 'created_at': int(time.time()), 'model': model, 'status': 'in_progress'}})}\n\n"
 
         # 发送 response.output_item.added 事件
-        yield f"data: {json.dumps({'type': 'response.output_item.added', 'item': {'id': msg_id, 'type': 'message', 'role': 'assistant', 'content': []}})}\n\n"
+        seq += 1
+        yield f"data: {json.dumps({'type': 'response.output_item.added', 'sequence_number': seq, 'output_index': 0, 'item': {'id': msg_id, 'type': 'message', 'role': 'assistant', 'status': 'in_progress', 'content': []}})}\n\n"
 
         # 发送 response.content_part.added 事件
-        yield f"data: {json.dumps({'type': 'response.content_part.added', 'item_id': msg_id, 'content_index': 0, 'part': {'type': 'text', 'text': ''}})}\n\n"
+        seq += 1
+        yield f"data: {json.dumps({'type': 'response.content_part.added', 'sequence_number': seq, 'item_id': msg_id, 'output_index': 0, 'content_index': 0, 'part': {'type': 'text', 'text': ''}})}\n\n"
 
         async for sse_data in client.stream_api(query, False, model):
             content = sse_data.get("content", "")
             if not content:
                 continue
 
-            # 去除特殊字符
             content = content.replace("\x00", "")
-            
-            # 过滤<think>标签内容，只发送实际回复
             full_text += content
             
-            # 简单过滤：跳过<think>标签内的内容
             buffer = full_text
             output = ""
             
@@ -283,7 +287,6 @@ async def stream_responses_response(client: MimoClient, query: str, model: str):
                         buffer = buffer[think_start + 7:]
                         in_think = True
                     else:
-                        # 保留末尾以防<think>被截断
                         if len(buffer) > 7:
                             output += buffer[:-7]
                             buffer = buffer[-7:]
@@ -301,26 +304,30 @@ async def stream_responses_response(client: MimoClient, query: str, model: str):
             if output:
                 completion_tokens += len(output.split())
                 actual_response += output
-                yield f"data: {json.dumps({'type': 'response.output_text.delta', 'item_id': msg_id, 'content_index': 0, 'delta': output})}\n\n"
+                seq += 1
+                yield f"data: {json.dumps({'type': 'response.output_text.delta', 'sequence_number': seq, 'item_id': msg_id, 'output_index': 0, 'content_index': 0, 'delta': output})}\n\n"
 
         # 发送剩余内容
         if full_text and not in_think:
             actual_response += full_text
-            yield f"data: {json.dumps({'type': 'response.output_text.delta', 'item_id': msg_id, 'content_index': 0, 'delta': full_text})}\n\n"
+            seq += 1
+            yield f"data: {json.dumps({'type': 'response.output_text.delta', 'sequence_number': seq, 'item_id': msg_id, 'output_index': 0, 'content_index': 0, 'delta': full_text})}\n\n"
 
-        # 发送 content_part.done 事件（包含完整文本）
-        yield f"data: {json.dumps({'type': 'response.content_part.done', 'item_id': msg_id, 'content_index': 0, 'part': {'type': 'text', 'text': actual_response}})}\n\n"
+        # 发送 content_part.done 事件
+        seq += 1
+        yield f"data: {json.dumps({'type': 'response.content_part.done', 'sequence_number': seq, 'item_id': msg_id, 'output_index': 0, 'content_index': 0, 'part': {'type': 'text', 'text': actual_response}})}\n\n"
 
-        # 发送 output_item.done 事件（包含完整内容）
-        yield f"data: {json.dumps({'type': 'response.output_item.done', 'item': {'id': msg_id, 'type': 'message', 'role': 'assistant', 'content': [{'type': 'text', 'text': actual_response}]}})}\n\n"
+        # 发送 output_item.done 事件
+        seq += 1
+        yield f"data: {json.dumps({'type': 'response.output_item.done', 'sequence_number': seq, 'output_index': 0, 'item': {'id': msg_id, 'type': 'message', 'role': 'assistant', 'status': 'completed', 'content': [{'type': 'text', 'text': actual_response}]}})}\n\n"
 
         # 发送 response.completed 事件
+        seq += 1
         prompt_tokens = len(query.split())
-        yield f"data: {json.dumps({'type': 'response.completed', 'response': {'id': resp_id, 'object': 'response', 'created_at': int(time.time()), 'model': model, 'status': 'completed', 'output': [{'id': msg_id, 'type': 'message', 'role': 'assistant', 'content': [{'type': 'text', 'text': actual_response}]}], 'usage': {'prompt_tokens': prompt_tokens, 'completion_tokens': completion_tokens, 'total_tokens': prompt_tokens + completion_tokens}}})}\n\n"
+        yield f"data: {json.dumps({'type': 'response.completed', 'sequence_number': seq, 'response': {'id': resp_id, 'object': 'response', 'created_at': int(time.time()), 'model': model, 'status': 'completed', 'output': [{'id': msg_id, 'type': 'message', 'role': 'assistant', 'status': 'completed', 'content': [{'type': 'text', 'text': actual_response}]}], 'usage': {'prompt_tokens': prompt_tokens, 'completion_tokens': completion_tokens, 'total_tokens': prompt_tokens + completion_tokens}}})}\n\n"
 
         yield "data: [DONE]\n\n"
 
-        # 记录使用情况
         elapsed = time.time() - start_time
         tracker.record(
             prompt_tokens=prompt_tokens,

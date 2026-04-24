@@ -50,6 +50,7 @@ def validate_api_key(authorization: Optional[str]) -> bool:
 
 
 @router.post("/v1/chat/completions")
+@router.post("/chat/completions")
 async def chat_completions(
     request: OpenAIRequest,
     authorization: Optional[str] = Header(None)
@@ -137,6 +138,7 @@ async def chat_completions(
 
 
 @router.get("/v1/models")
+@router.get("/models")
 async def list_models():
     """列出可用模型"""
     return {

@@ -155,20 +155,39 @@ async def responses_api(
     if not account:
         raise HTTPException(status_code=503, detail={"error": {"message": "no mimo account"}})
 
-    # 解析input为messages格式
+    # 解析input为messages格式 - 构建对话上下文
+    messages = []
+    system_prompt = ""
+    
     if isinstance(request.input, str):
-        query = request.input
+        # 纯文本输入
+        messages = [{"role": "user", "content": request.input}]
     else:
-        # 从消息数组提取最后的用户消息
-        query = ""
+        # 消息数组 - 支持完整对话上下文
         for msg in request.input:
             if isinstance(msg, dict):
-                if msg.get("role") == "user":
-                    content = msg.get("content", "")
-                    if isinstance(content, list):
-                        query = " ".join([c.get("text", "") for c in content if isinstance(c, dict)])
-                    else:
-                        query = content
+                role = msg.get("role", "user")
+                content = msg.get("content", "")
+                
+                # 处理 content 为列表的情况
+                if isinstance(content, list):
+                    content = " ".join([c.get("text", "") for c in content if isinstance(c, dict)])
+                
+                # system 消息提取出来
+                if role == "system":
+                    system_prompt = content
+                else:
+                    messages.append({"role": role, "content": content})
+    
+    # 构建最终查询 - 如果有 system prompt，添加到最前面
+    if system_prompt:
+        query = f"{system_prompt}\n\n" + "\n\n".join([f"{m['role']}: {m['content']}" for m in messages])
+    else:
+        query = "\n\n".join([f"{m['role']}: {m['content']}" for m in messages])
+    
+    # 兼容旧版本：只有单个消息时直接用content
+    if len(messages) == 1:
+        query = messages[0].get("content", query)
 
     # 创建Mimo客户端
     client = MimoClient(account)
@@ -181,7 +200,7 @@ async def responses_api(
     # 流式响应
     if request.stream:
         return StreamingResponse(
-            stream_responses_response(client, query, model),
+            stream_responses_response(client, query, model, messages),
             media_type="text/event-stream"
         )
 
@@ -207,25 +226,41 @@ async def responses_api(
         if think_content:
             full_content = f"<think>{think_content}</think>\n{content}"
 
+        # 构建完整的output - 包含所有消息
+        output_items = []
+        
+        # 添加历史消息（非 assistant）
+        for msg in messages:
+            if msg.get("role") != "assistant":
+                msg_content = msg.get("content", "")
+                if msg_content:
+                    output_items.append({
+                        "type": "message",
+                        "id": f"msg_{uuid.uuid4().hex[:24]}",
+                        "role": msg.get("role", "user"),
+                        "content": [{"type": "text", "text": msg_content}]
+                    })
+        
+        # 添加当前 assistant 响应
+        output_items.append({
+            "type": "message",
+            "id": f"msg_{uuid.uuid4().hex[:24]}",
+            "role": "assistant",
+            "content": [
+                {
+                    "type": "text",
+                    "text": full_content
+                }
+            ]
+        })
+
         # Responses API 格式响应
         response = {
             "id": f"resp_{uuid.uuid4().hex[:24]}",
             "object": "response",
             "created_at": int(time.time()),
             "model": model,
-            "output": [
-                {
-                    "type": "message",
-                    "id": f"msg_{uuid.uuid4().hex[:24]}",
-                    "role": "assistant",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": full_content
-                        }
-                    ]
-                }
-            ],
+            "output": output_items,
             "usage": {
                 "prompt_tokens": prompt_tokens,
                 "completion_tokens": completion_tokens,
@@ -240,8 +275,11 @@ async def responses_api(
         raise HTTPException(status_code=500, detail={"error": {"message": str(e)}})
 
 
-async def stream_responses_response(client: MimoClient, query: str, model: str):
+async def stream_responses_response(client: MimoClient, query: str, model: str, messages: list = None):
     """Responses API 流式响应生成器"""
+    if messages is None:
+        messages = []
+    
     resp_id = f"resp_{uuid.uuid4().hex[:24]}"
     msg_id = f"msg_{uuid.uuid4().hex[:24]}"
     start_time = time.time()
@@ -260,9 +298,16 @@ async def stream_responses_response(client: MimoClient, query: str, model: str):
         seq += 1
         yield f"data: {json.dumps({'type': 'response.in_progress', 'sequence_number': seq, 'response': {'id': resp_id, 'object': 'response', 'created_at': int(time.time()), 'model': model, 'status': 'in_progress'}})}\n\n"
 
-        # 发送 response.output_item.added 事件
+        # 添加历史消息（非 assistant）到 output
+        for msg in messages:
+            if msg.get("role") != "assistant":
+                msg_id_hist = f"msg_{uuid.uuid4().hex[:24]}"
+                seq += 1
+                yield f"data: {json.dumps({'type': 'response.output_item.added', 'sequence_number': seq, 'output_index': len([m for m in messages if m.get('role') != 'assistant']) - 1, 'item': {'id': msg_id_hist, 'type': 'message', 'role': msg.get('role', 'user'), 'status': 'completed', 'content': [{'type': 'text', 'text': msg.get('content', '')}]}})}\n\n"
+
+        # 发送当前 assistant 的 output_item.added 事件
         seq += 1
-        yield f"data: {json.dumps({'type': 'response.output_item.added', 'sequence_number': seq, 'output_index': 0, 'item': {'id': msg_id, 'type': 'message', 'role': 'assistant', 'status': 'in_progress', 'content': []}})}\n\n"
+        yield f"data: {json.dumps({'type': 'response.output_item.added', 'sequence_number': seq, 'output_index': len([m for m in messages if m.get('role') != 'assistant']), 'item': {'id': msg_id, 'type': 'message', 'role': 'assistant', 'status': 'in_progress', 'content': []}})}\n\n"
 
         # 发送 response.content_part.added 事件
         seq += 1
@@ -321,10 +366,35 @@ async def stream_responses_response(client: MimoClient, query: str, model: str):
         seq += 1
         yield f"data: {json.dumps({'type': 'response.output_item.done', 'sequence_number': seq, 'output_index': 0, 'item': {'id': msg_id, 'type': 'message', 'role': 'assistant', 'status': 'completed', 'content': [{'type': 'text', 'text': actual_response}]}})}\n\n"
 
+        # 构建 output 包含历史消息
+        output_items = []
+        output_idx = 0
+        
+        # 添加历史消息
+        for msg in messages:
+            if msg.get("role") != "assistant" and msg.get("content"):
+                output_items.append({
+                    "id": f"msg_{uuid.uuid4().hex[:24]}",
+                    "type": "message",
+                    "role": msg.get("role", "user"),
+                    "status": "completed",
+                    "content": [{"type": "text", "text": msg.get("content", "")}]
+                })
+                output_idx += 1
+        
+        # 添加当前响应
+        output_items.append({
+            "id": msg_id,
+            "type": "message",
+            "role": "assistant",
+            "status": "completed",
+            "content": [{"type": "text", "text": actual_response}]
+        })
+
         # 发送 response.completed 事件
         seq += 1
         prompt_tokens = len(query.split())
-        yield f"data: {json.dumps({'type': 'response.completed', 'sequence_number': seq, 'response': {'id': resp_id, 'object': 'response', 'created_at': int(time.time()), 'model': model, 'status': 'completed', 'output': [{'id': msg_id, 'type': 'message', 'role': 'assistant', 'status': 'completed', 'content': [{'type': 'text', 'text': actual_response}]}], 'usage': {'prompt_tokens': prompt_tokens, 'completion_tokens': completion_tokens, 'total_tokens': prompt_tokens + completion_tokens}}})}\n\n"
+        yield f"data: {json.dumps({'type': 'response.completed', 'sequence_number': seq, 'response': {'id': resp_id, 'object': 'response', 'created_at': int(time.time()), 'model': model, 'status': 'completed', 'output': output_items, 'usage': {'prompt_tokens': prompt_tokens, 'completion_tokens': completion_tokens, 'total_tokens': prompt_tokens + completion_tokens}}})}\n\n"
 
         yield "data: [DONE]\n\n"
 

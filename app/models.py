@@ -85,6 +85,12 @@ class AddAccountRequest(BaseModel):
     nickname: Optional[str] = ""
 
 
+class OpenAIMessageInput(BaseModel):
+    """消息输入"""
+    role: str
+    content: str
+
+
 class OpenAIResponsesRequest(BaseModel):
     """OpenAI Responses API 请求"""
     model: str
@@ -92,3 +98,4 @@ class OpenAIResponsesRequest(BaseModel):
     stream: bool = False
     max_output_tokens: Optional[int] = None
     temperature: Optional[float] = None
+    previous_response_id: Optional[str] = None  # 支持上下文

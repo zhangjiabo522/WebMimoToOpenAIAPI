@@ -34,8 +34,13 @@ def send_email(subject: str, body: str) -> bool:
         
         msg.attach(MIMEText(body, 'html', 'utf-8'))
         
-        server = smtplib.SMTP(host, port, timeout=30)
-        server.starttls()
+        # 端口 465 使用 SSL，其他用 STARTTLS
+        if port == 465:
+            server = smtplib.SMTP_SSL(host, port, timeout=30)
+        else:
+            server = smtplib.SMTP(host, port, timeout=30)
+            server.starttls()
+        
         server.login(user, password)
         server.sendmail(email_from, email_to, msg.as_string())
         server.quit()

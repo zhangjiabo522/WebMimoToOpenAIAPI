@@ -194,6 +194,19 @@ ps aux | grep python3
 pkill -f "python3 main.py"
 ```
 
+## 更新日志
+
+### v1.2.5
+- 修复流式输出 think 标签实时显示
+- 修复日志中文乱码问题
+- 优化 SSE think 块处理逻辑
+
+### v1.2.4
+- 添加管理界面标签页（统计/对话/设置/账号）
+- 支持 tool_calls 功能
+- 添加账号定时检测与邮件通知
+- 优化流式响应性能
+
 ## License
 
 MIT

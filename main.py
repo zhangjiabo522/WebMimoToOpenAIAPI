@@ -1,4 +1,5 @@
 """Mimo2API Python版本 - 主程序入口"""
+# -*- coding: utf-8 -*-
 
 import logging
 import re
@@ -20,7 +21,7 @@ class UvicornAccessFilter(logging.Filter):
 app = FastAPI(
     title="Mimo2API",
     description="将小米 Mimo AI 转换为 OpenAI 兼容 API",
-    version="1.0.0"
+    version="1.2.5"
 )
 
 # 添加CORS中间件

@@ -47,6 +47,7 @@ def add_log(msg_type: str, msg: str):
     log_queue.append(entry)
     if len(log_queue) > 100:
         log_queue.pop(0)
+    print(f"[{msg_type.upper()}] {msg}")
     for listener in log_listeners:
         try:
             listener.put_nowait(entry)

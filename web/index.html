@@ -46,6 +46,7 @@
         
         button { background: var(--primary); color: white; border: none; border-radius: 6px; padding: 10px 20px; cursor: pointer; font-size: 14px; }
         button:hover { opacity: 0.9; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
         .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
         .btn-danger { background: var(--danger); padding: 6px 12px; font-size: 12px; }
         
@@ -65,6 +66,21 @@
         details { margin-bottom: 12px; }
         summary { cursor: pointer; color: var(--primary); font-size: 0.85rem; }
         ol { margin: 8px 0 0 20px; font-size: 0.85rem; color: var(--text-muted); }
+
+        /* Chat */
+        .chat-box { background: var(--bg-input); border-radius: 8px; height: 400px; overflow-y: auto; padding: 12px; margin-bottom: 12px; }
+        .chat-msg { margin-bottom: 12px; }
+        .chat-msg-user { text-align: right; }
+        .chat-msg-assistant { text-align: left; }
+        .chat-bubble { display: inline-block; padding: 10px 14px; border-radius: 12px; max-width: 85%; font-size: 14px; line-height: 1.5; text-align: left; white-space: pre-wrap; word-break: break-word; }
+        .chat-msg-user .chat-bubble { background: var(--primary); color: white; border-bottom-right-radius: 4px; }
+        .chat-msg-assistant .chat-bubble { background: var(--bg-card); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+        .chat-thinking { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; cursor: pointer; }
+        .chat-thinking-content { font-size: 13px; color: var(--text-muted); padding: 8px; border-left: 2px solid var(--border); margin: 4px 0 8px 0; display: none; white-space: pre-wrap; }
+        .chat-input-row { display: flex; gap: 8px; }
+        .chat-input-row textarea { flex: 1; margin-bottom: 0; }
+        .chat-input-row button { white-space: nowrap; }
+        .chat-stop { background: var(--danger); }
     </style>
 </head>
 <body>
@@ -77,6 +93,7 @@
         <!-- Tabs -->
         <div class="tabs">
             <div class="tab active" data-tab="stats">统计</div>
+            <div class="tab" data-tab="chat">对话</div>
             <div class="tab" data-tab="settings">设置</div>
             <div class="tab" data-tab="accounts">账号</div>
         </div>
@@ -104,6 +121,22 @@
             <div class="card">
                 <h2>可用模型</h2>
                 <div id="models" class="models"></div>
+            </div>
+        </div>
+
+        <!-- Chat Tab -->
+        <div id="tab-chat" class="tab-content">
+            <div class="card">
+                <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+                    <select id="chatModel" style="flex:1;margin-bottom:0"></select>
+                    <label style="white-space:nowrap;margin:0"><input type="checkbox" id="chatThinking"> 思考</label>
+                    <label style="white-space:nowrap;margin:0"><input type="checkbox" id="chatSearch"> 联网</label>
+                </div>
+                <div id="chatBox" class="chat-box"></div>
+                <div class="chat-input-row">
+                    <textarea id="chatInput" placeholder="输入消息... (Enter发送, Shift+Enter换行)" rows="2"></textarea>
+                    <button id="chatSendBtn" onclick="sendChat()">发送</button>
+                </div>
             </div>
         </div>
 
@@ -383,13 +416,153 @@
                 try {
                     const d = JSON.parse(e.data);
                     const box = document.getElementById('logs');
-                    box.innerHTML = box.innerHTML + '<div>' + (d.time || '') + ' ' + d.msg + '</div>';
+                    const div = document.createElement('div');
+                    div.textContent = (d.time || '') + ' ' + d.msg;
+                    box.appendChild(div);
+                    if (box.children.length > 200) box.removeChild(box.firstChild);
                     box.scrollTop = box.scrollHeight;
                 } catch(e) {}
             };
         }
         
+        function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+        
+        function loadChatModels() {
+            fetch('/v1/models').then(r=>r.json()).then(d=>{
+                const sel = document.getElementById('chatModel');
+                sel.innerHTML = d.data.map(m=>'<option value="'+escHtml(m.id)+'">'+escHtml(m.id)+'</option>').join('');
+            }).catch(()=>{});
+        }
+        
+        function addChatMsg(role, content, think) {
+            const box = document.getElementById('chatBox');
+            const div = document.createElement('div');
+            div.className = 'chat-msg chat-msg-' + role;
+            let html = '';
+            if (think) {
+                const id = 'think_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+                html += '<div class="chat-thinking" onclick="document.getElementById(\''+id+'\').style.display=document.getElementById(\''+id+'\').style.display==\'none\'?\'block\':\'none\'">🧠 已思考 <small>(点击展开)</small></div>';
+                html += '<div id="'+id+'" class="chat-thinking-content">' + escHtml(think) + '</div>';
+            }
+            html += '<div class="chat-bubble">' + escHtml(content) + '</div>';
+            div.innerHTML = html;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        }
+        
+        function updateLastChatMsg(content, think) {
+            const box = document.getElementById('chatBox');
+            const last = box.lastElementChild;
+            if (!last || !last.classList.contains('chat-msg-assistant')) return;
+            const bubble = last.querySelector('.chat-bubble');
+            if (bubble) bubble.textContent = content;
+            if (think) {
+                const tc = last.querySelector('.chat-thinking-content');
+                if (tc) tc.textContent = think;
+            }
+            box.scrollTop = box.scrollHeight;
+        }
+        
+        let chatAbortController = null;
+        
+        async function sendChat() {
+            const input = document.getElementById('chatInput');
+            const msg = input.value.trim();
+            if (!msg) return;
+            input.value = '';
+            
+            addChatMsg('user', msg);
+            
+            const model = document.getElementById('chatModel').value;
+            const thinking = document.getElementById('chatThinking').checked;
+            const search = document.getElementById('chatSearch').checked;
+            
+            const btn = document.getElementById('chatSendBtn');
+            btn.disabled = true;
+            btn.textContent = '停止';
+            btn.className = 'chat-stop';
+            btn.onclick = stopChat;
+            
+            addChatMsg('assistant', '');
+            let fullContent = '';
+            let fullThink = '';
+            
+            chatAbortController = new AbortController();
+            
+            try {
+                const res = await fetch('/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json', 'Authorization':'Bearer sk-default'},
+                    body: JSON.stringify({
+                        model: model,
+                        messages: [{'role':'user','content':msg}],
+                        stream: true,
+                        reasoning_effort: thinking || undefined,
+                        tools: search ? [{'type':'web_search'}] : undefined
+                    }),
+                    signal: chatAbortController.signal
+                });
+                
+                if (!res.ok) {
+                    const err = await res.text();
+                    updateLastChatMsg('请求失败: HTTP ' + res.status);
+                    return;
+                }
+                
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                
+                while (true) {
+                    const {done, value} = await reader.read();
+                    if (done) break;
+                    
+                    buffer += decoder.decode(value, {stream: true});
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+                    
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        const data = line.slice(6).trim();
+                        if (data === '[DONE]') continue;
+                        try {
+                            const d = JSON.parse(data);
+                            const delta = d.choices?.[0]?.delta;
+                            if (delta?.content) {
+                                fullContent += delta.content;
+                                updateLastChatMsg(fullContent);
+                            }
+                        } catch(e) {}
+                    }
+                }
+            } catch(e) {
+                if (e.name !== 'AbortError') {
+                    updateLastChatMsg('错误: ' + e.message);
+                }
+            } finally {
+                chatAbortController = null;
+                btn.disabled = false;
+                btn.textContent = '发送';
+                btn.className = '';
+                btn.onclick = sendChat;
+            }
+        }
+        
+        function stopChat() {
+            if (chatAbortController) {
+                chatAbortController.abort();
+            }
+        }
+        
+        document.getElementById('chatInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendChat();
+            }
+        });
+        
         load();
+        loadChatModels();
     </script>
 </body>
 </html>

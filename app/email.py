@@ -3,6 +3,7 @@
 import smtplib
 import threading
 import time
+import asyncio
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
@@ -148,7 +149,7 @@ class AccountChecker:
             
             if mimo_acc:
                 client = MimoClient(mimo_acc)
-                success, msg = client.test_connection()
+                success, msg = asyncio.run(client.test_connection())
                 
                 if success:
                     valid.append(acc.get('user_id', 'unknown'))

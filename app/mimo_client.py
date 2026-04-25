@@ -145,14 +145,18 @@ class MimoClient:
                         continue
                     try:
                         sse_data = json.loads(data)
-                        if sse_data.get("type") == "text":
-                            content = sse_data.get("content", "").replace("\x00", "")
-                            result.append(content)
-                        if "promptTokens" in sse_data:
-                            usage = {
-                                "promptTokens": sse_data.get("promptTokens", 0),
-                                "completionTokens": sse_data.get("completionTokens", 0)
-                            }
+                        items = [sse_data] if isinstance(sse_data, dict) else sse_data if isinstance(sse_data, list) else []
+                        for item in items:
+                            if not isinstance(item, dict):
+                                continue
+                            if item.get("type") == "text":
+                                content = item.get("content", "").replace("\x00", "")
+                                result.append(content)
+                            if "promptTokens" in item:
+                                usage = {
+                                    "promptTokens": item.get("promptTokens", 0),
+                                    "completionTokens": item.get("completionTokens", 0)
+                                }
                     except json.JSONDecodeError:
                         continue
                 current_event = None
@@ -196,8 +200,12 @@ class MimoClient:
                             continue
                         try:
                             sse_data = json.loads(data)
-                            if sse_data.get("type") == "text" and sse_data.get("content"):
-                                yield sse_data
+                            items = [sse_data] if isinstance(sse_data, dict) else sse_data if isinstance(sse_data, list) else []
+                            for item in items:
+                                if not isinstance(item, dict):
+                                    continue
+                                if item.get("type") == "text" and item.get("content"):
+                                    yield item
                         except json.JSONDecodeError:
                             continue
                     current_event = None

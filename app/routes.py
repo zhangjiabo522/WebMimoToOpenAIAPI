@@ -16,7 +16,8 @@ from .models import (
 )
 from .config import config_manager, MimoAccount
 from .mimo_client import MimoClient
-from .utils import parse_curl, parse_url, build_query_from_messages, build_curl_command, build_bash_script, parse_tool_calls
+from .utils import parse_curl, parse_url, build_query_from_messages, build_curl_command, build_bash_script
+from .tool_call import build_tool_prompt, get_tool_names, extract_tool_call
 from .usage import tracker
 
 router = APIRouter()
@@ -96,14 +97,8 @@ async def chat_completions(
 
     # 注入 tools 定义到提示词
     if request.tools:
-        tool_descriptions = []
-        for t in request.tools:
-            func = t.get("function", {})
-            name = func.get("name", "unknown")
-            desc = func.get("description", "")
-            tool_descriptions.append(f"{name}: {desc}")
-        if tool_descriptions:
-            tool_prompt = f"系统功能: {', '.join(tool_descriptions)}。调用格式: <tool call><function=名称><parameter=参数>值</parameter></function></tool call>"
+        tool_prompt = build_tool_prompt(request.tools)
+        if tool_prompt:
             query = f"{tool_prompt}\n\n{query}"
 
     # 判断是否启用深度思考
@@ -118,7 +113,7 @@ async def chat_completions(
     # 流式响应
     if request.stream:
         return StreamingResponse(
-            stream_response(client, query, thinking, model),
+            stream_response(client, query, thinking, model, request.tools if request.tools else None),
             media_type="text/event-stream"
         )
 
@@ -141,14 +136,17 @@ async def chat_completions(
         # 添加日志
         add_log("success", f"[{model}] 输入:{prompt_tokens} 输出:{completion_tokens} 耗时:{elapsed:.1f}s")
 
-        # 解析<tool call>标签
-        cleaned_content, tool_calls = parse_tool_calls(content)
-
-        cleaned_content = remove_think_tags(cleaned_content)
+        # 检查工具调用
+        tools_list = request.tools if request.tools else None
+        if tools_list:
+            tool_names = get_tool_names(tools_list)
+            tool_call, cleaned_content = extract_tool_call(content, tool_names)
+        else:
+            tool_call, cleaned_content = None, content
 
         # 如果有思考内容，拼接到回复前面
         full_content = cleaned_content
-        if think_content:
+        if think_content and not tool_call:
             full_content = f"<think>{think_content}</think>\n{cleaned_content}"
 
         response = OpenAIResponse(
@@ -159,8 +157,8 @@ async def chat_completions(
             choices=[
                 OpenAIChoice(
                     index=0,
-                    message=OpenAIMessage(role="assistant", content=full_content, tool_calls=tool_calls or None),
-                    finish_reason="tool_calls" if tool_calls else "stop"
+                    message=OpenAIMessage(role="assistant", content=full_content if not tool_call else None, tool_calls=[tool_call] if tool_call else None),
+                    finish_reason="tool_calls" if tool_call else "stop"
                 )
             ],
             usage=OpenAIUsage(
@@ -173,6 +171,8 @@ async def chat_completions(
         return response
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         add_log("error", f"API错误: {str(e)[:100]}")
         raise HTTPException(status_code=500, detail={"error": {"message": str(e)}})
 
@@ -503,21 +503,57 @@ async def stream_logs():
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
-async def stream_response(client: MimoClient, query: str, thinking: bool, model: str):
-    """流式响应生成器"""
+async def stream_response(client: MimoClient, query: str, thinking: bool, model: str, tools: list = None):
+    """流式响应生成器
+
+    有工具定义时：先缓冲全部内容，收完后提取工具调用再输出
+    无工具定义时：实时流式输出（含 think 标签流式处理）
+    """
     msg_id = f"chatcmpl-{uuid.uuid4().hex[:24]}"
     start_time = time.time()
     completion_tokens = 0
     open_tag = "<think>"
     close_tag = "</think>"
+    has_tools = tools is not None and len(tools) > 0
 
     yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(role='assistant'))]).dict())}\n\n"
 
-    buffer = ""
-    in_think = False
-    sent_think_open = False
-
     try:
+        # ── 有工具时：缓冲全部内容 ──
+        if has_tools:
+            full_content = ""
+            async for sse_data in client.stream_api(query, thinking, model):
+                chunk = sse_data.get("content", "")
+                if chunk:
+                    full_content += chunk
+
+            full_content = full_content.replace("\x00", "")
+            completion_tokens = len(full_content.split())
+
+            tool_names = get_tool_names(tools)
+            tool_call, cleaned = extract_tool_call(full_content, tool_names)
+
+            if tool_call:
+                yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(tool_calls=[tool_call]))]).dict())}\n\n"
+                yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(), finish_reason='tool_calls')]).dict())}\n\n"
+            else:
+                main_text, think_text = _split_think(full_content)
+                if main_text:
+                    yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(content=main_text))]).dict())}\n\n"
+                yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(), finish_reason='stop')]).dict())}\n\n"
+
+            yield "data: [DONE]\n\n"
+
+            elapsed = time.time() - start_time
+            tracker.record(prompt_tokens=len(query.split()), completion_tokens=completion_tokens, seconds=elapsed)
+            add_log("success", f"[{model}] 输入:{len(query.split())} 输出:{completion_tokens} 耗时:{elapsed:.1f}s")
+            return
+
+        # ── 无工具时：实时流式输出 ──
+        buffer = ""
+        in_think = False
+        sent_think_open = False
+
         async for sse_data in client.stream_api(query, thinking, model):
             content = sse_data.get("content", "")
             if not content:
@@ -604,19 +640,24 @@ async def stream_response(client: MimoClient, query: str, thinking: bool, model:
         add_log("success", f"[{model}] 输入:{len(query.split())} 输出:{completion_tokens} 耗时:{elapsed:.1f}s")
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         yield f"data: {json.dumps({'error': {'message': str(e)}})}\n\n"
         add_log("error", f"流式错误: {str(e)[:100]}")
 
-        yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(), finish_reason='stop')]).dict())}\n\n"
-        yield "data: [DONE]\n\n"
 
-        elapsed = time.time() - start_time
-        tracker.record(prompt_tokens=len(query.split()), completion_tokens=completion_tokens, seconds=elapsed)
-        add_log("success", f"[{model}] 输入:{len(query.split())} 输出:{completion_tokens} 耗时:{elapsed:.1f}s")
-
-    except Exception as e:
-        yield f"data: {json.dumps({'error': {'message': str(e)}})}\n\n"
-        add_log("error", f"流式错误: {str(e)[:100]}")
+def _split_think(text: str) -> tuple:
+    """分离 think 块和主文本"""
+    if not text:
+        return text, ""
+    text = text.replace('\x00', '')
+    if "<think>" in text and "</think>" in text:
+        tstart = text.find("<think>")
+        tend = text.find("</think>")
+        main = (text[:tstart] + text[tend + 8:]).strip()
+        think = text[tstart + 7:tend].strip()
+        return main, think
+    return text, ""
 
 
 def remove_think_tags(text: str) -> str:

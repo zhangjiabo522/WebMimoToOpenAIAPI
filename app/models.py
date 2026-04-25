@@ -7,7 +7,8 @@ from pydantic import BaseModel, Field
 class OpenAIMessage(BaseModel):
     """OpenAI消息"""
     role: str
-    content: Union[str, List]
+    content: Optional[Union[str, List]] = None
+    tool_calls: Optional[List] = None
 
 
 class OpenAIRequest(BaseModel):

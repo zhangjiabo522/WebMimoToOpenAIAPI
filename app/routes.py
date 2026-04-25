@@ -506,64 +506,36 @@ async def stream_logs():
 async def stream_response(client: MimoClient, query: str, thinking: bool, model: str, tools: list = None):
     """流式响应生成器
 
-    有工具定义时：先缓冲全部内容，收完后提取工具调用再输出
-    无工具定义时：实时流式输出（含 think 标签流式处理）
+    无论是否有工具定义，均实时流式输出（含 think 标签流式处理）。
+    有工具时额外在流末尾提取 tool_calls。
     """
     msg_id = f"chatcmpl-{uuid.uuid4().hex[:24]}"
     start_time = time.time()
     completion_tokens = 0
-    open_tag = "<think>"
-    close_tag = "</think>"
+    open_tag = ""
+    close_tag = ""
     has_tools = tools is not None and len(tools) > 0
 
     yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(role='assistant'))]).dict())}\n\n"
 
+    buffer = ""
+    in_think = False
+    sent_think_open = False
+    full_content = ""  # 用于最终提取 tool_call
+
     try:
-        # ── 有工具时：缓冲全部内容 ──
-        if has_tools:
-            full_content = ""
-            async for sse_data in client.stream_api(query, thinking, model):
-                chunk = sse_data.get("content", "")
-                if chunk:
-                    full_content += chunk
-
-            full_content = full_content.replace("\x00", "")
-            completion_tokens = len(full_content.split())
-
-            tool_names = get_tool_names(tools)
-            tool_call, cleaned = extract_tool_call(full_content, tool_names)
-
-            if tool_call:
-                yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(tool_calls=[tool_call]))]).dict())}\n\n"
-                yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(), finish_reason='tool_calls')]).dict())}\n\n"
-            else:
-                main_text, think_text = _split_think(full_content)
-                if main_text:
-                    yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(content=main_text))]).dict())}\n\n"
-                yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(), finish_reason='stop')]).dict())}\n\n"
-
-            yield "data: [DONE]\n\n"
-
-            elapsed = time.time() - start_time
-            tracker.record(prompt_tokens=len(query.split()), completion_tokens=completion_tokens, seconds=elapsed)
-            add_log("success", f"[{model}] 输入:{len(query.split())} 输出:{completion_tokens} 耗时:{elapsed:.1f}s")
-            return
-
-        # ── 无工具时：实时流式输出 ──
-        buffer = ""
-        in_think = False
-        sent_think_open = False
-
         async for sse_data in client.stream_api(query, thinking, model):
             content = sse_data.get("content", "")
             if not content:
                 continue
             completion_tokens += len(content.split())
             buffer += content
+            if has_tools:
+                full_content += content
 
             while buffer:
-                tstart = buffer.find("<think>")
-                tend = buffer.find("</think>")
+                tstart = buffer.find("<thinking>")
+                tend = buffer.find("</thinking>")
 
                 if in_think:
                     if tend >= 0:
@@ -595,9 +567,9 @@ async def stream_response(client: MimoClient, query: str, thinking: bool, model:
                         if resp:
                             yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(content=resp))]).dict())}\n\n"
                         buffer = buffer[:tend + 8]
-                        if buffer.startswith("<think>"):
+                        if buffer.startswith("<thinking>"):
                             buffer = buffer[7:]
-                            tend = buffer.rfind("</think>")
+                            tend = buffer.rfind("")
                             if tend >= 0:
                                 new_think = buffer[:tend].replace('\x00', '').strip()
                                 if new_think:
@@ -613,7 +585,7 @@ async def stream_response(client: MimoClient, query: str, thinking: bool, model:
                         if resp:
                             yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(content=resp))]).dict())}\n\n"
                         buffer = buffer[tstart + 7:]
-                        tend = buffer.rfind("</think>")
+                        tend = buffer.rfind("")
                         if tend >= 0:
                             new_think = buffer[:tend].replace('\x00', '').strip()
                             if new_think:
@@ -632,7 +604,19 @@ async def stream_response(client: MimoClient, query: str, thinking: bool, model:
         if sent_think_open:
             yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(content=close_tag))]).dict())}\n\n"
 
-        yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(), finish_reason='stop')]).dict())}\n\n"
+        # ── 流结束时：有工具则提取 tool_call ──
+        if has_tools:
+            full_content = full_content.replace("\x00", "")
+            tool_names = get_tool_names(tools)
+            tool_call, cleaned = extract_tool_call(full_content, tool_names)
+            if tool_call:
+                yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(tool_calls=[tool_call]))]).dict())}\n\n"
+                yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(), finish_reason='tool_calls')]).dict())}\n\n"
+            else:
+                yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(), finish_reason='stop')]).dict())}\n\n"
+        else:
+            yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(), finish_reason='stop')]).dict())}\n\n"
+
         yield "data: [DONE]\n\n"
 
         elapsed = time.time() - start_time

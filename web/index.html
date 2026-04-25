@@ -587,28 +587,12 @@
         
         load();
         loadChatModels();
-        
-        function updateSelf() {
-            if (!confirm('确定要更新到最新版本？服务将自动重启。')) return;
-            const btn = document.getElementById('updateBtn');
-            btn.textContent = '更新中...';
-            fetch('/api/update', { method: 'POST' }).then(r=>r.json()).then(d=>{
-                if (d.success) {
-                    alert('更新成功，服务已重启');
-                } else {
-                    alert('更新失败: ' + (d.error || '未知错误'));
-                    btn.textContent = '一键更新';
-                }
-            }).catch(e=>{
-                alert('更新失败: ' + e.message);
-                btn.textContent = '一键更新';
-            });
-        }
     </script>
     
     <div class="footnote">
         <span id="versionTag">v1.2.3</span>
-        <a href="#" onclick="updateSelf()" id="updateBtn">一键更新</a>
+        <span>|</span>
+        <a href="https://github.com/zhangjiabo522/WebMimoToOpenAIAPI" target="_blank">GitHub</a>
     </div>
 
     <style>

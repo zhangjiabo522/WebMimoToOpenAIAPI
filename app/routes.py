@@ -789,28 +789,3 @@ async def add_account(request: AddAccountRequest):
 async def get_accounts():
     """获取账号列表"""
     return config_manager.get_accounts()
-
-
-@router.post("/api/update")
-async def update_self():
-    """一键更新（git pull + 重启）"""
-    import subprocess, sys, os
-    try:
-        # git pull
-        result = subprocess.run(["git", "pull"], capture_output=True, text=True, timeout=30)
-        if result.returncode != 0:
-            return {"success": False, "error": result.stderr[:200]}
-        
-        # 重启服务
-        pid = os.getpid()
-        subprocess.Popen(
-            [sys.executable] + sys.argv,
-            stdout=open("nohup.out", "a"),
-            stderr=open("nohup.out", "a")
-        )
-        import signal
-        os.kill(pid, signal.SIGTERM)
-        
-        return {"success": True}
-    except Exception as e:
-        return {"success": False, "error": str(e)}

@@ -150,6 +150,24 @@
             </div>
 
             <div class="card">
+                <h2>账号定时检测</h2>
+                <label>启用定时检测</label>
+                <select id="emailCheckEnabled">
+                    <option value="false">禁用</option>
+                    <option value="true">启用</option>
+                </select>
+                <label>检测间隔（秒）</label>
+                <input type="number" id="emailCheckInterval" value="3600">
+                <div style="margin:10px 0;font-size:13px;color:var(--text-muted)">
+                    <div>上次检测: <span id="checkLastTime">-</span></div>
+                    <div>检测结果: <span id="checkLastResult">-</span></div>
+                </div>
+                <button onclick="saveCheckerSettings()">保存</button>
+                <button class="btn-outline" onclick="checkNow()">立即检测</button>
+                <div id="checkerResult"></div>
+            </div>
+
+            <div class="card">
                 <h2>账号模式</h2>
                 <label>多账号调用方式</label>
                 <select id="accountMode" onchange="saveAccountMode()">
@@ -208,6 +226,10 @@
             document.getElementById('emailUser').value = cfg.email_user || '';
             document.getElementById('emailFrom').value = cfg.email_from || '';
             document.getElementById('emailTo').value = cfg.email_to || '';
+            document.getElementById('emailCheckEnabled').value = cfg.email_check_enabled ? 'true' : 'false';
+            document.getElementById('emailCheckInterval').value = cfg.email_check_interval || 3600;
+            document.getElementById('checkLastTime').textContent = cfg.check_last_time || '-';
+            document.getElementById('checkLastResult').textContent = cfg.check_last_result || '-';
             renderAccounts();
             loadStats();
             loadModels();
@@ -246,6 +268,27 @@
             } else {
                 show('emailResult', 'error', res.message || '发送失败');
             }
+        }
+        
+        async function saveCheckerSettings() {
+            cfg.email_check_enabled = document.getElementById('emailCheckEnabled').value === 'true';
+            cfg.email_check_interval = parseInt(document.getElementById('emailCheckInterval').value) || 3600;
+            await fetch('/api/config', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(cfg) });
+            
+            if (cfg.email_check_enabled) {
+                await fetch('/api/checker/start', { method: 'POST' });
+            } else {
+                await fetch('/api/checker/stop', { method: 'POST' });
+            }
+            
+            show('checkerResult', 'success', '已保存');
+        }
+        
+        async function checkNow() {
+            const res = await (await fetch('/api/check-now', { method: 'POST' })).json();
+            document.getElementById('checkLastTime').textContent = res.last_time || '-';
+            document.getElementById('checkLastResult').textContent = res.last_result || '-';
+            show('checkerResult', 'success', '检测完成');
         }
         
         async function saveAccountMode() {

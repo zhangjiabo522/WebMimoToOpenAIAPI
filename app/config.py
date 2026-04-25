@@ -33,6 +33,10 @@ class Config:
     email_password: str = ""
     email_from: str = ""
     email_to: str = ""
+    email_check_enabled: bool = False
+    email_check_interval: int = 3600
+    check_last_time: str = ""
+    check_last_result: str = ""
 
     def __post_init__(self):
         if self.mimo_accounts is None:
@@ -51,7 +55,11 @@ class Config:
             "email_user": self.email_user,
             "email_password": self.email_password,
             "email_from": self.email_from,
-            "email_to": self.email_to
+            "email_to": self.email_to,
+            "email_check_enabled": self.email_check_enabled,
+            "email_check_interval": self.email_check_interval,
+            "check_last_time": self.check_last_time,
+            "check_last_result": self.check_last_result
         }
 
 
@@ -89,7 +97,11 @@ class ConfigManager:
                     email_user=data.get('email_user', ''),
                     email_password=data.get('email_password', ''),
                     email_from=data.get('email_from', ''),
-                    email_to=data.get('email_to', '')
+                    email_to=data.get('email_to', ''),
+                    email_check_enabled=data.get('email_check_enabled', False),
+                    email_check_interval=data.get('email_check_interval', 3600),
+                    check_last_time=data.get('check_last_time', ''),
+                    check_last_result=data.get('check_last_result', '')
                 )
         except Exception as e:
             print(f"加载配置失败: {e}")
@@ -146,19 +158,25 @@ class ConfigManager:
             accounts = [
                 MimoAccount(**acc) for acc in new_config.get('mimo_accounts', [])
             ]
+            # 保留敏感字段旧值（在用户没有填写的情况下）
+            old = self.config
             self.config = Config(
-                api_keys=new_config.get('api_keys', 'sk-default'),
+                api_keys=new_config.get('api_keys', old.api_keys),
                 mimo_accounts=accounts,
-                system_prompt=new_config.get('system_prompt', ''),
-                default_model=new_config.get('default_model', 'mimo-v2.5-pro'),
-                account_mode=new_config.get('account_mode', 'random'),
-                email_enabled=new_config.get('email_enabled', False),
-                email_host=new_config.get('email_host', ''),
-                email_port=new_config.get('email_port', 587),
-                email_user=new_config.get('email_user', ''),
-                email_password=new_config.get('email_password', ''),
-                email_from=new_config.get('email_from', ''),
-                email_to=new_config.get('email_to', '')
+                system_prompt=new_config.get('system_prompt', old.system_prompt),
+                default_model=new_config.get('default_model', old.default_model),
+                account_mode=new_config.get('account_mode', old.account_mode),
+                email_enabled=new_config.get('email_enabled', old.email_enabled),
+                email_host=new_config.get('email_host', old.email_host),
+                email_port=new_config.get('email_port', old.email_port),
+                email_user=new_config.get('email_user', old.email_user),
+                email_password=new_config.get('email_password', old.email_password),
+                email_from=new_config.get('email_from', old.email_from),
+                email_to=new_config.get('email_to', old.email_to),
+                email_check_enabled=new_config.get('email_check_enabled', old.email_check_enabled),
+                email_check_interval=new_config.get('email_check_interval', old.email_check_interval),
+                check_last_time=old.check_last_time,
+                check_last_result=old.check_last_result
             )
             self.save()
 

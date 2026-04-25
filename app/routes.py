@@ -649,6 +649,39 @@ async def test_email():
         return {"status": "error", "message": "发送失败，请检查配置"}
 
 
+@router.post("/api/check-now")
+async def check_now():
+    """立即检测账号"""
+    from .email import email_checker
+    email_checker._check_accounts()
+    cfg = config_manager.get_config()
+    return {
+        "last_time": cfg.get('check_last_time', ''),
+        "last_result": cfg.get('check_last_result', '')
+    }
+
+
+@router.post("/api/checker/start")
+async def start_checker():
+    """启动定时检测"""
+    from .email import email_checker
+    cfg = config_manager.get_config()
+    config_manager.config.email_check_enabled = True
+    config_manager.save()
+    email_checker.start()
+    return {"status": "ok"}
+
+
+@router.post("/api/checker/stop")
+async def stop_checker():
+    """停止定时检测"""
+    from .email import email_checker
+    config_manager.config.email_check_enabled = False
+    config_manager.save()
+    email_checker.stop()
+    return {"status": "ok"}
+
+
 @router.post("/api/parse-curl")
 async def parse_curl_command(request: ParseCurlRequest):
     """解析cURL命令"""

@@ -2,9 +2,10 @@
 
 import smtplib
 import threading
+import time
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 from .config import config_manager
 
@@ -89,14 +90,16 @@ def send_test_email() -> bool:
 class AccountChecker:
     """账号检测定时任务"""
     
-    def __init__(self, interval: int = 3600):
-        self.interval = interval
+    def __init__(self):
         self.running = False
         self.thread: Optional[threading.Thread] = None
     
     def start(self):
         """启动检测"""
         if self.running:
+            return
+        cfg = config_manager.get_config()
+        if not cfg.get('email_check_enabled'):
             return
         self.running = True
         self.thread = threading.Thread(target=self._check_loop, daemon=True)
@@ -106,6 +109,12 @@ class AccountChecker:
         """停止检测"""
         self.running = False
     
+    def restart(self):
+        """重启检测"""
+        self.stop()
+        time.sleep(1)
+        self.start()
+    
     def _check_loop(self):
         """检测循环"""
         while self.running:
@@ -114,8 +123,9 @@ class AccountChecker:
             except Exception as e:
                 print(f"账号检测错误: {e}")
             
-            import time
-            time.sleep(self.interval)
+            cfg = config_manager.get_config()
+            interval = cfg.get('email_check_interval', 3600)
+            time.sleep(interval)
     
     def _check_accounts(self):
         """检测所有账号"""
@@ -126,13 +136,36 @@ class AccountChecker:
             return
         
         expired = []
+        valid = []
         
         for acc in accounts:
-            client = MimoClient(config_manager.config.mimo_accounts[config_manager.config.mimo_accounts.index(acc)])
-            success, msg = client.test_connection()
+            # 查找对应的 MimoAccount 对象
+            mimo_acc = None
+            for ma in config_manager.config.mimo_accounts:
+                if ma.user_id == acc.get('user_id'):
+                    mimo_acc = ma
+                    break
             
-            if not success:
-                expired.append((acc.get('user_id', 'unknown'), msg))
+            if mimo_acc:
+                client = MimoClient(mimo_acc)
+                success, msg = client.test_connection()
+                
+                if success:
+                    valid.append(acc.get('user_id', 'unknown'))
+                else:
+                    expired.append((acc.get('user_id', 'unknown'), msg))
+        
+        # 更新检测结果
+        now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        if expired:
+            result = f"过期: {', '.join([e[0] for e in expired])}"
+        else:
+            result = "全部正常" if valid else "无账号"
+        
+        # 更新配置
+        config_manager.config.check_last_time = now_str
+        config_manager.config.check_last_result = result
+        config_manager.save()
         
         # 发送过期邮件
         for user_id, error in expired:
@@ -140,4 +173,4 @@ class AccountChecker:
 
 
 # 全局检测器
-account_checker = AccountChecker(interval=3600)
+email_checker = AccountChecker()

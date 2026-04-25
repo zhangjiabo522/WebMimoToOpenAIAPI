@@ -286,3 +286,30 @@ curl -X POST "$API_URL/v1/chat/completions" \\
     "messages": [{{"role": "user", "content": "你好"}}
   ]
 }}'"""
+
+
+def parse_tool_calls(text: str) -> tuple[str, list]:
+    """解析MiMo回复中的<tool call>标签，转换为OpenAI tool_calls格式"""
+    import uuid, json
+    tool_calls = []
+    pattern = re.compile(
+        r'<tool\s+call><function=(\w+)>(.*?)</function></tool\s+call>',
+        re.DOTALL
+    )
+    for idx, match in enumerate(pattern.finditer(text)):
+        func_name = match.group(1)
+        params_text = match.group(2)
+        arguments = {}
+        for pm in re.finditer(r'<parameter=(\w+)>(.*?)</parameter>', params_text, re.DOTALL):
+            arguments[pm.group(1)] = pm.group(2)
+        tool_calls.append({
+            "index": idx,
+            "id": f"call_{uuid.uuid4().hex[:16]}",
+            "type": "function",
+            "function": {
+                "name": func_name,
+                "arguments": json.dumps(arguments, ensure_ascii=False)
+            }
+        })
+    cleaned = pattern.sub('', text).strip()
+    return cleaned, tool_calls

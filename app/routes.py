@@ -16,7 +16,7 @@ from .models import (
 )
 from .config import config_manager, MimoAccount
 from .mimo_client import MimoClient
-from .utils import parse_curl, parse_url, build_query_from_messages, build_curl_command, build_bash_script
+from .utils import parse_curl, parse_url, build_query_from_messages, build_curl_command, build_bash_script, parse_tool_calls
 from .usage import tracker
 
 router = APIRouter()
@@ -125,10 +125,13 @@ async def chat_completions(
         # 添加日志
         add_log("success", f"[{model}] 输入:{prompt_tokens} 输出:{completion_tokens} 耗时:{elapsed:.1f}s")
 
+        # 解析<tool call>标签
+        cleaned_content, tool_calls = parse_tool_calls(content)
+
         # 如果有思考内容，拼接到回复前面
-        full_content = content
+        full_content = cleaned_content
         if think_content:
-            full_content = f"<think>{think_content}</think>\n{content}"
+            full_content = f"<think>{think_content}</think>\n{cleaned_content}"
 
         response = OpenAIResponse(
             id=f"chatcmpl-{uuid.uuid4().hex[:24]}",
@@ -138,8 +141,8 @@ async def chat_completions(
             choices=[
                 OpenAIChoice(
                     index=0,
-                    message=OpenAIMessage(role="assistant", content=full_content),
-                    finish_reason="stop"
+                    message=OpenAIMessage(role="assistant", content=full_content, tool_calls=tool_calls or None),
+                    finish_reason="tool_calls" if tool_calls else "stop"
                 )
             ],
             usage=OpenAIUsage(
@@ -494,6 +497,7 @@ async def stream_response(client: MimoClient, query: str, thinking: bool, model:
 
     buffer = ""
     in_think = False
+    sent_tool_calls = False
 
     try:
         async for sse_data in client.stream_api(query, thinking, model):
@@ -505,34 +509,63 @@ async def stream_response(client: MimoClient, query: str, thinking: bool, model:
             buffer += content
             text = buffer.replace("\x00", "")
 
+            # 检查是否包含完整<tool call>标签
+            cleaned, tool_calls = parse_tool_calls(text)
+            if tool_calls:
+                # 发送tool_calls前积累的文本
+                if cleaned:
+                    chunk = OpenAIResponse(
+                        id=msg_id, object="chat.completion.chunk", created=int(time.time()),
+                        model=model,
+                        choices=[OpenAIChoice(index=0, delta=OpenAIDelta(content=cleaned), finish_reason=None)]
+                    )
+                    yield f"data: {json.dumps(chunk.dict())}\n\n"
+
+                # 发送tool_calls
+                for tc in tool_calls:
+                    tc_chunk = OpenAIResponse(
+                        id=msg_id, object="chat.completion.chunk", created=int(time.time()),
+                        model=model,
+                        choices=[OpenAIChoice(index=0, delta=OpenAIDelta(tool_calls=[tc]))]
+                    )
+                    yield f"data: {json.dumps(tc_chunk.dict())}\n\n"
+
+                # finish with tool_calls reason
+                finish = OpenAIResponse(
+                    id=msg_id, object="chat.completion.chunk", created=int(time.time()),
+                    model=model,
+                    choices=[OpenAIChoice(index=0, delta=OpenAIDelta(), finish_reason="tool_calls")]
+                )
+                yield f"data: {json.dumps(finish.dict())}\n\n"
+                yield "data: [DONE]\n\n"
+
+                elapsed = time.time() - start_time
+                prompt_tokens = len(query.split())
+                tracker.record(prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, seconds=elapsed)
+                add_log("success", f"[{model}] tool_calls 输入:{prompt_tokens} 输出:{completion_tokens} 耗时:{elapsed:.1f}s")
+                return
+
+            # 没有tool call，正常处理think和文本
             # 处理<think>标签
             while True:
                 if not in_think:
-                    # 查找<think>标签
                     idx = text.find("<think>")
                     if idx != -1:
-                        # 发送<think>之前的内容
                         if idx > 0:
                             chunk = OpenAIResponse(
-                                id=msg_id,
-                                object="chat.completion.chunk",
-                                created=int(time.time()),
+                                id=msg_id, object="chat.completion.chunk", created=int(time.time()),
                                 model=model,
                                 choices=[OpenAIChoice(index=0, delta=OpenAIDelta(content=text[:idx]))]
                             )
                             yield f"data: {json.dumps(chunk.dict())}\n\n"
-
                         in_think = True
                         text = text[idx + 7:]
                         continue
 
-                    # 保留最后7个字符以防<think>被截断
                     safe = len(text) - 7
                     if safe > 0:
                         chunk = OpenAIResponse(
-                            id=msg_id,
-                            object="chat.completion.chunk",
-                            created=int(time.time()),
+                            id=msg_id, object="chat.completion.chunk", created=int(time.time()),
                             model=model,
                             choices=[OpenAIChoice(index=0, delta=OpenAIDelta(content=text[:safe]))]
                         )
@@ -541,31 +574,23 @@ async def stream_response(client: MimoClient, query: str, thinking: bool, model:
                     break
 
                 else:
-                    # 查找</think>标签
                     idx = text.find("</think>")
                     if idx != -1:
-                        # 发送</think>之前的思考内容
                         if idx > 0:
                             chunk = OpenAIResponse(
-                                id=msg_id,
-                                object="chat.completion.chunk",
-                                created=int(time.time()),
+                                id=msg_id, object="chat.completion.chunk", created=int(time.time()),
                                 model=model,
                                 choices=[OpenAIChoice(index=0, delta=OpenAIDelta(reasoning=text[:idx]))]
                             )
                             yield f"data: {json.dumps(chunk.dict())}\n\n"
-
                         in_think = False
                         text = text[idx + 8:]
                         continue
 
-                    # 保留最后8个字符以防</think>被截断
                     safe = len(text) - 8
                     if safe > 0:
                         chunk = OpenAIResponse(
-                            id=msg_id,
-                            object="chat.completion.chunk",
-                            created=int(time.time()),
+                            id=msg_id, object="chat.completion.chunk", created=int(time.time()),
                             model=model,
                             choices=[OpenAIChoice(index=0, delta=OpenAIDelta(reasoning=text[:safe]))]
                         )
@@ -573,47 +598,27 @@ async def stream_response(client: MimoClient, query: str, thinking: bool, model:
                         text = text[safe:]
                     break
 
-            buffer = text
-
-        # 发送剩余内容
-        if buffer:
-            if in_think:
-                chunk = OpenAIResponse(
-                    id=msg_id,
-                    object="chat.completion.chunk",
-                    created=int(time.time()),
-                    model=model,
-                    choices=[OpenAIChoice(index=0, delta=OpenAIDelta(reasoning=buffer))]
-                )
-            else:
-                chunk = OpenAIResponse(
-                    id=msg_id,
-                    object="chat.completion.chunk",
-                    created=int(time.time()),
-                    model=model,
-                    choices=[OpenAIChoice(index=0, delta=OpenAIDelta(content=buffer))]
-                )
+        # 发送剩余的文本
+        if text:
+            chunk = OpenAIResponse(
+                id=msg_id, object="chat.completion.chunk", created=int(time.time()),
+                model=model,
+                choices=[OpenAIChoice(index=0, delta=OpenAIDelta(content=text))]
+            )
             yield f"data: {json.dumps(chunk.dict())}\n\n"
 
         # 发送结束标记
         final_chunk = OpenAIResponse(
-            id=msg_id,
-            object="chat.completion.chunk",
-            created=int(time.time()),
+            id=msg_id, object="chat.completion.chunk", created=int(time.time()),
             model=model,
             choices=[OpenAIChoice(index=0, delta=OpenAIDelta(), finish_reason="stop")]
         )
         yield f"data: {json.dumps(final_chunk.dict())}\n\n"
         yield "data: [DONE]\n\n"
 
-        # 记录使用情况
         elapsed = time.time() - start_time
         prompt_tokens = len(query.split())
-        tracker.record(
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-            seconds=elapsed
-        )
+        tracker.record(prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, seconds=elapsed)
         add_log("success", f"[{model}] 输入:{prompt_tokens} 输出:{completion_tokens} 耗时:{elapsed:.1f}s")
 
     except Exception as e:

@@ -25,6 +25,7 @@ class OpenAIDelta(BaseModel):
     role: Optional[str] = None
     content: Optional[str] = None
     reasoning: Optional[str] = Field(None, description="深度思考内容")
+    tool_calls: Optional[List] = None
 
 
 class OpenAIChoice(BaseModel):

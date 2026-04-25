@@ -82,9 +82,26 @@ class MimoClient:
                     json=body
                 )
                 if response.status_code == 200:
-                    return True, "连接成功"
+                    try:
+                        data = response.json()
+                        if "data" in data or "text" in data or "choices" in data:
+                            return True, "连接成功"
+                        elif data.get("code") == 401:
+                            return False, "token已过期，请重新获取"
+                        else:
+                            return True, f"响应: {str(data)[:100]}"
+                    except:
+                        return True, "连接成功"
+                elif response.status_code == 401:
+                    return False, "认证失败，请重新获取cookie"
+                elif response.status_code == 403:
+                    return False, "权限不足，可能需要登录"
                 else:
-                    return False, f"HTTP {response.status_code}"
+                    try:
+                        err = response.json().get("message", response.text[:100])
+                        return False, f"HTTP {response.status_code}: {err}"
+                    except:
+                        return False, f"HTTP {response.status_code}"
         except Exception as e:
             return False, str(e)
 

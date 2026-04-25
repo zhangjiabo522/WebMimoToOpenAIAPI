@@ -750,6 +750,7 @@ async def generate_code(request: GenerateCodeRequest):
 @router.post("/api/test-account")
 async def test_account(request: TestAccountRequest):
     """测试账号有效性"""
+    import json
     try:
         account = MimoAccount(
             service_token=request.service_token,
@@ -758,10 +759,19 @@ async def test_account(request: TestAccountRequest):
         )
 
         client = MimoClient(account)
-        content, _, _ = await client.call_api("hi", False)
+        
+        print(f"\n{'='*60}")
+        print(f"[测试账号] user_id: {request.user_id}")
+        print(f"[测试账号] 发送消息: 'hi'")
+        
+        content, _, _ = await client.call_api("hi", False, tools=True)
+        
+        print(f"[测试账号] 回复: {content[:500]}")
+        print(f"{'='*60}\n")
 
-        return {"success": True, "response": content}
+        return {"success": True, "response": content[:200]}
     except Exception as e:
+        print(f"[测试账号] 异常: {e}")
         return {"success": False, "error": str(e)}
 
 

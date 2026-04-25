@@ -71,8 +71,13 @@ class MimoClient:
 
     async def test_connection(self) -> Tuple[bool, str]:
         """测试账号连接"""
+        import json
         try:
             body = self._create_request_body("hi", False)
+            print(f"\n{'='*60}")
+            print(f"[测试] 请求 URL: {self.API_URL}")
+            print(f"[测试] 请求参数: xiaomichatbot_ph={self.account.xiaomichatbot_ph}")
+            print(f"[测试] 请求体: {json.dumps(body, ensure_ascii=False)}")
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
                     self.API_URL,
@@ -81,28 +86,39 @@ class MimoClient:
                     cookies=self._create_cookies(),
                     json=body
                 )
+                print(f"[测试] 响应状态: {response.status_code}")
+                try:
+                    resp_text = response.text[:500]
+                    print(f"[测试] 响应体: {resp_text}")
+                except:
+                    pass
+                print(f"{'='*60}\n")
                 if response.status_code == 200:
                     try:
-                        data = response.json()
-                        if "data" in data or "text" in data or "choices" in data:
+                        resp_text = response.text
+                        if "dialogId" in resp_text or "think" in resp_text.lower() or "type" in resp_text:
                             return True, "连接成功"
-                        elif data.get("code") == 401:
-                            return False, "token已过期，请重新获取"
+                        elif resp_text.startswith("{"):
+                            data = json.loads(resp_text)
+                            if data.get("code") == 401:
+                                return False, "token已过期，请重新获取"
+                            return True, f"响应: {resp_text[:200]}"
                         else:
-                            return True, f"响应: {str(data)[:100]}"
+                            return True, "连接成功"
                     except:
                         return True, "连接成功"
                 elif response.status_code == 401:
-                    return False, "认证失败，请重新获取cookie"
+                    return False, "认证失败，cookie可能已过期"
                 elif response.status_code == 403:
-                    return False, "权限不足，可能需要登录"
+                    return False, "权限不足，可能需要重新登录"
                 else:
                     try:
-                        err = response.json().get("message", response.text[:100])
+                        err = response.json().get("message", response.text[:200])
                         return False, f"HTTP {response.status_code}: {err}"
                     except:
                         return False, f"HTTP {response.status_code}"
         except Exception as e:
+            print(f"[测试] 异常: {e}")
             return False, str(e)
 
     async def call_api(self, query: str, thinking: bool = False, model: str = "mimo-v2.5-pro") -> Tuple[str, str, dict]:

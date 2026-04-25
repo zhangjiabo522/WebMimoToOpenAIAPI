@@ -97,16 +97,9 @@ async def chat_completions(
             func = t.get("function", {})
             name = func.get("name", "unknown")
             desc = func.get("description", "")
-            params = func.get("parameters")
-            props = params.get("properties", {}) if params else {}
-            param_str = ", ".join([f"{k}({v.get('type','string')}: {v.get('description','')})" for k, v in props.items()])
-            tool_descriptions.append(f"- {name}: {desc}{' 参数: '+param_str if param_str else ''}")
+            tool_descriptions.append(f"{name}: {desc}")
         if tool_descriptions:
-            tool_prompt = f"""当前支持以下功能:
-{chr(10).join(tool_descriptions)}
-
-如需调用功能，输出:
-<tool call><function=功能名><parameter=参数名>参数值</parameter></function></tool call>"""
+            tool_prompt = f"系统功能: {', '.join(tool_descriptions)}。调用格式: <tool call><function=名称><parameter=参数>值</parameter></function></tool call>"
             query = f"{tool_prompt}\n\n{query}"
 
     # 判断是否启用深度思考

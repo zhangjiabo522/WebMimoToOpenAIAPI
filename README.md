@@ -13,25 +13,58 @@
 - 用量统计追踪
 - 多账号轮询
 - Web 管理界面
+- 一键安装/更新脚本 (Linux: `install.sh` / `update.sh`, Windows: `install.bat` / `update.bat`)
 
 ## 快速开始
 
-### 安装
+### 一键安装 (Linux)
+
+```bash
+bash <(curl -s https://raw.githubusercontent.com/zhangjiabo522/WebMimoToOpenAIAPI/main/install.sh)
+```
+
+### 一键安装 (Windows)
+
+下载 `install.bat` 双击运行，或：
 
 ```bash
 git clone https://github.com/zhangjiabo522/WebMimoToOpenAIAPI.git
 cd WebMimoToOpenAIAPI
-pip install -r requirements.txt
+install.bat
+```
+
+### 手动安装
+
+```bash
+git clone https://github.com/zhangjiabo522/WebMimoToOpenAIAPI.git
+cd WebMimoToOpenAIAPI
+pip3 install -r requirements.txt --break-system-packages
+```
+
+### 一键更新 (Linux)
+
+```bash
+bash update.sh
+```
+
+### 一键更新 (Windows)
+
+双击 `update.bat` 或命令行运行：
+
+```bash
+update.bat
 ```
 
 ### 启动
 
 ```bash
-# 默认端口 9999
-python3 main.py &
+# 前台运行 (默认端口 9999)
+python3 main.py
 
-# 或后台启动
+# 后台运行
 nohup python3 main.py > nohup.out 2>&1 &
+
+# 管理界面: http://localhost:9999
 ```
 
 ## API 端点

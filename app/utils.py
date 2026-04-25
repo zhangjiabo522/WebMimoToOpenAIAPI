@@ -7,54 +7,56 @@ from .config import MimoAccount
 
 def parse_curl(curl_command: str) -> Optional[MimoAccount]:
     """解析cURL命令提取Mimo账号凭证"""
-    try:
-        with open('/tmp/parse_debug.log', 'w') as f:
-            f.write(f"Input: {repr(curl_command[:200])}\n")
-    except:
-        pass
-    
     account = {
         'service_token': '',
         'user_id': '',
         'xiaomichatbot_ph': ''
     }
 
-    # 预处理PowerShell格式
     clean = curl_command
+
+    # PowerShell格式处理 (^ 续行符)
     clean = re.sub(r'\^\s*\n', '', clean)
-    clean = clean.replace('^\"', '"')
-    clean = clean.replace(r'^\^"', '"')
-    clean = clean.replace(r'^\"', '"')
-    clean = clean.replace('\\"', '"')
-    clean = clean.replace('%^', '%')
-    clean = clean.replace('^', '')
-    
+    clean = re.sub(r'\^"', '"', clean)
+    clean = re.sub(r'\^%', '%', clean)
+    clean = re.sub(r'\^', '', clean)
+
+    # URL编码解码
+    import urllib.parse
     try:
-        with open('/tmp/parse_debug.log', 'a') as f:
-            f.write(f"Clean: {repr(clean[:200])}\n")
+        clean = urllib.parse.unquote(clean)
     except:
         pass
 
-    # 提取cookie
-    cookie_match = re.search(r'(?:-b|--cookie)\s+\'(.+)$', clean)
+    # 提取cookie字符串（支持多种格式）
+    cookie_match = re.search(r"(?:-b|--cookie)\s+'(.+?)'(?:\s|$)", clean, re.DOTALL)
     if not cookie_match:
-        cookie_match = re.search(r'(?:-b|--cookie)\s+"(.+)$', clean)
+        cookie_match = re.search(r'(?:-b|--cookie)\s+"(.*?)"(?:\s|$)', clean, re.DOTALL)
     if not cookie_match:
-        return None
+        cookie_match = re.search(r"(?:-H|--header)\s+'[Cc]ookie:\s*(.+?)'", clean, re.DOTALL)
+    if not cookie_match:
+        cookie_match = re.search(r'(?:-H|--header)\s+"[Cc]ookie:\s*(.+?)"', clean, re.DOTALL)
 
-    cookies = cookie_match.group(1)
-    
-    # 直接从cookie字符串提取 (不依赖引号)
-    st = re.search(r'serviceToken=([^;]+)', cookies)
-    uid = re.search(r'userId=(\d+)', cookies)
-    ph = re.search(r'xiaomichatbot_ph=([^;]+)', cookies)
-    
-    if st:
-        account['service_token'] = st.group(1).strip().strip('"')
-    if uid:
-        account['user_id'] = uid.group(1)
-    if ph:
-        account['xiaomichatbot_ph'] = ph.group(1).strip().strip('"')
+    cookies = cookie_match.group(1) if cookie_match else clean
+
+    # 提取serviceToken
+    st_match = re.search(r'serviceToken="([^"]+)"', cookies)
+    if not st_match:
+        st_match = re.search(r'serviceToken=([^\s;]+)', cookies)
+    if st_match:
+        account['service_token'] = st_match.group(1).strip()
+
+    # 提取userId
+    uid_match = re.search(r'userId=(\d+)', cookies)
+    if uid_match:
+        account['user_id'] = uid_match.group(1)
+
+    # 提取xiaomichatbot_ph
+    ph_match = re.search(r'xiaomichatbot_ph="([^"]+)"', cookies)
+    if not ph_match:
+        ph_match = re.search(r'xiaomichatbot_ph=([^\s;]+)', cookies)
+    if ph_match:
+        account['xiaomichatbot_ph'] = ph_match.group(1).strip()
 
     if not account['service_token']:
         return None

@@ -117,19 +117,28 @@ class MimoClient:
                 cookies=self._create_cookies(),
                 json=body
             )
+            if response.status_code == 401:
+                raise Exception("token已过期，请重新获取cookie")
+            if response.status_code == 403:
+                raise Exception("权限不足，可能需要登录")
             response.raise_for_status()
 
             result = []
             usage = {"promptTokens": 0, "completionTokens": 0}
+            current_event = None
 
-            async for line in response.aiter_lines():
-                line = line.strip()
-                if not line:
+            async for raw_line in response.aiter_lines():
+                raw_line = raw_line.rstrip()
+                if raw_line.startswith("id:"):
                     continue
-                if line.startswith("data:"):
-                    data = line[5:].strip()
-                    if data == "[DONE]":
+                elif raw_line.startswith("event:"):
+                    current_event = raw_line[6:].strip()
+                elif raw_line.startswith("data:"):
+                    data = raw_line[5:].strip()
+                    if data == "[DONE]" or current_event == "finish":
                         break
+                    if not data:
+                        continue
                     try:
                         sse_data = json.loads(data)
                         if sse_data.get("type") == "text":
@@ -142,6 +151,7 @@ class MimoClient:
                             }
                     except json.JSONDecodeError:
                         continue
+                current_event = None
 
             full_text = "".join(result)
             content, think_content = self._parse_think_tags(full_text)
@@ -167,20 +177,26 @@ class MimoClient:
                     raise Exception("权限不足，可能需要登录")
                 response.raise_for_status()
 
-                async for line in response.aiter_lines():
-                    line = line.strip()
-                    if not line:
+                current_event = None
+                async for raw_line in response.aiter_lines():
+                    raw_line = raw_line.rstrip()
+                    if raw_line.startswith("id:"):
                         continue
-                    if line.startswith("data:"):
-                        data = line[5:].strip()
-                        if data == "[DONE]":
+                    elif raw_line.startswith("event:"):
+                        current_event = raw_line[6:].strip()
+                    elif raw_line.startswith("data:"):
+                        data = raw_line[5:].strip()
+                        if data == "[DONE]" or current_event == "finish":
                             break
+                        if not data:
+                            continue
                         try:
                             sse_data = json.loads(data)
                             if sse_data.get("type") == "text" and sse_data.get("content"):
                                 yield sse_data
                         except json.JSONDecodeError:
                             continue
+                    current_event = None
 
     @staticmethod
     def _parse_think_tags(text: str) -> Tuple[str, str]:

@@ -11,6 +11,11 @@ from pathlib import Path
 from app.routes import router, add_log
 from app.config import config_manager
 
+
+class UvicornAccessFilter(logging.Filter):
+    def filter(self, record):
+        return not (hasattr(record, 'pathname') and 'uvicorn' in record.pathname and 'access' in record.getMessage().lower())
+
 # 创建FastAPI应用
 app = FastAPI(
     title="Mimo2API",
@@ -68,7 +73,8 @@ def main():
         app,
         host="0.0.0.0",
         port=port,
-        log_level="info"
+        log_level="warning",
+        access_log=False
     )
 
 

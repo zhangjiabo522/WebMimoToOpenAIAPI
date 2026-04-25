@@ -25,22 +25,70 @@ __all__ = [
 ]
 
 
+# ─── 已知的 OpenCode 工具名 ────────────────────────────────────
+
+OPENCODE_TOOL_NAMES = frozenset({
+    "read", "write", "edit", "patch", "glob", "grep", "list",
+    "bash", "webfetch", "websearch", "lsp", "todowrite", "todoread",
+    "skill", "question",
+})
+
+
+def _is_opencode_tools(tools: List[Dict[str, Any]]) -> bool:
+    """检测传入的 tools 是否为 OpenCode 工具集。"""
+    if not tools:
+        return False
+    names = set()
+    for tool in tools:
+        func = _safe_get(tool, "function", default={})
+        name = _safe_get(func, "name", default=None)
+        if name:
+            names.add(name)
+    # 如果包含至少 3 个 OpenCode 工具名，认为是 OpenCode 工具集
+    return len(names & OPENCODE_TOOL_NAMES) >= 3
+
+
 # ─── 构建工具提示词 ────────────────────────────────────────────
 
 def build_tool_prompt(tools: List[Dict[str, Any]]) -> str:
     """将 OpenAI tools 列表转为 MiMo 可理解的纯文本工具说明。
 
-    输出示例：
-        你有以下工具可以调用：
-        1. get_current_time - 获取当前时间
-           参数:
-             - timezone (string, 必需): 时区
-        调用方式：TOOL_CALL: 工具名(参数1=值1, 参数2=值2)
+    当检测到 OpenCode 工具集时，会自动追加使用指南，
+    防止模型在不需要时调用工具（避免"降智"）。
     """
     if not tools:
         return ""
 
-    lines = ["你有以下工具可以调用："]
+    is_opencode = _is_opencode_tools(tools)
+
+    if is_opencode:
+        lines = [
+            "# 可用工具",
+            "",
+            "你是一个运行在用户计算机上的 AI 助手。你拥有以下工具，可在需要时调用。",
+            "",
+            "## 核心原则",
+            "1. 只在**明确需要**时使用工具 —— 普通对话、解释概念、简单计算不需要工具",
+            "2. 不要编造工具参数 —— 如果你不确定路径，先用 glob / bash 确认",
+            "3. 文件操作前先看 —— 修改文件前先用 read 查看内容",
+            "4. 保持对话自然 —— 工具调用只是辅助，主要输出仍然是自然语言",
+            "",
+            "## 何时使用工具",
+            "- 读取/修改文件系统 → read / write / edit / glob / grep",
+            "- 执行命令（git、npm、python 等）→ bash",
+            "- 获取网页信息 → webfetch",
+            "- 管理任务列表 → todowrite",
+            "",
+            "## 何时不使用工具",
+            "- 知识性问题（\"Python 是什么\"）",
+            "- 简单数学计算",
+            "- 纯文本对话和安慰",
+            "- 不需要验证的通用建议",
+            "",
+            "## 工具列表",
+        ]
+    else:
+        lines = ["你有以下工具可以调用："]
 
     for i, tool in enumerate(tools, 1):
         # 容错提取 —— tool 可能是 dict 或 pydantic model
@@ -66,8 +114,24 @@ def build_tool_prompt(tools: List[Dict[str, Any]]) -> str:
                     lines.append(f"     - {pname} ({ptype}, {req_tag}){suffix}")
 
     lines.append("")
-    lines.append('调用方式：TOOL_CALL: 工具名(参数1="值1", 参数2="值2")')
-    lines.append("注意：只调用上面列出的工具，不要编造工具名。参数值用 JSON 格式。")
+    if is_opencode:
+        lines.append("## 调用格式")
+        lines.append("必须严格使用以下格式（独占一行）：")
+        lines.append("")
+        lines.append('TOOL_CALL: 工具名(参数1="值1", 参数2="值2")')
+        lines.append("")
+        lines.append("示例：")
+        lines.append('  TOOL_CALL: read(filePath="/root/project/main.py")')
+        lines.append('  TOOL_CALL: bash(command="git status", description="Check status")')
+        lines.append("")
+        lines.append("注意：")
+        lines.append("- 参数值用双引号包裹")
+        lines.append('- 字符串中的双引号需要转义 \\"')
+        lines.append("- 不要在 TOOL_CALL 前后添加多余说明文字")
+    else:
+        lines.append('调用方式：TOOL_CALL: 工具名(参数1="值1", 参数2="值2")')
+        lines.append("注意：只调用上面列出的工具，不要编造工具名。参数值用 JSON 格式。")
+
     return "\n".join(lines)
 
 

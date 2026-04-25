@@ -508,7 +508,7 @@ async def stream_response(client: MimoClient, query: str, thinking: bool, model:
     yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(role='assistant'))]).dict())}\n\n"
 
     buffer = ""
-    last_sent = ""
+    last_sent = 0
     in_think = False
 
     try:

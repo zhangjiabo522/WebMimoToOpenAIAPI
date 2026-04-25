@@ -122,15 +122,19 @@ class MimoClient:
             result = []
             usage = {"promptTokens": 0, "completionTokens": 0}
 
-            # 解析SSE流
             async for line in response.aiter_lines():
+                line = line.strip()
+                if not line:
+                    continue
                 if line.startswith("data:"):
                     data = line[5:].strip()
+                    if data == "[DONE]":
+                        break
                     try:
                         sse_data = json.loads(data)
                         if sse_data.get("type") == "text":
-                            result.append(sse_data.get("content", ""))
-                        # 提取usage信息
+                            content = sse_data.get("content", "").replace("\x00", "")
+                            result.append(content)
                         if "promptTokens" in sse_data:
                             usage = {
                                 "promptTokens": sse_data.get("promptTokens", 0),
@@ -139,8 +143,7 @@ class MimoClient:
                     except json.JSONDecodeError:
                         continue
 
-            # 合并结果并解析<think>标签
-            full_text = "".join(result).replace("\x00", "")
+            full_text = "".join(result)
             content, think_content = self._parse_think_tags(full_text)
 
             return content, think_content, usage
@@ -158,11 +161,20 @@ class MimoClient:
                 cookies=self._create_cookies(),
                 json=body
             ) as response:
+                if response.status_code == 401:
+                    raise Exception("token已过期，请重新获取cookie")
+                if response.status_code == 403:
+                    raise Exception("权限不足，可能需要登录")
                 response.raise_for_status()
 
                 async for line in response.aiter_lines():
+                    line = line.strip()
+                    if not line:
+                        continue
                     if line.startswith("data:"):
                         data = line[5:].strip()
+                        if data == "[DONE]":
+                            break
                         try:
                             sse_data = json.loads(data)
                             if sse_data.get("type") == "text" and sse_data.get("content"):

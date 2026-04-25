@@ -292,8 +292,10 @@ def parse_tool_calls(text: str) -> tuple[str, list]:
     """解析MiMo回复中的<tool call>标签，转换为OpenAI tool_calls格式"""
     import uuid, json
     tool_calls = []
+    
+    # 支持多种格式: <tool call> / <tool_call> / <toolcall>
     pattern = re.compile(
-        r'<tool\s+call><function=(\w+)>(.*?)</function></tool\s+call>',
+        r'<(?:tool\s+call|tool_call|toolcall)><function=(\w+)>(.*?)</function></(?:tool\s+call|tool_call|toolcall)>',
         re.DOTALL
     )
     for idx, match in enumerate(pattern.finditer(text)):
@@ -301,7 +303,9 @@ def parse_tool_calls(text: str) -> tuple[str, list]:
         params_text = match.group(2)
         arguments = {}
         for pm in re.finditer(r'<parameter=(\w+)>(.*?)</parameter>', params_text, re.DOTALL):
-            arguments[pm.group(1)] = pm.group(2)
+            arguments[pm.group(1)] = pm.group(2).strip()
+        if not arguments:
+            arguments = {"": params_text.strip()}
         tool_calls.append({
             "index": idx,
             "id": f"call_{uuid.uuid4().hex[:16]}",

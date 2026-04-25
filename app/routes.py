@@ -92,17 +92,36 @@ async def chat_completions(
 
     # 注入 tools 定义到提示词
     if request.tools:
+        from datetime import datetime
         tool_descriptions = []
         for t in request.tools:
             func = t.get("function", {})
             name = func.get("name", "unknown")
             desc = func.get("description", "")
             params = func.get("parameters", {}).get("properties", {})
-            param_str = ", ".join([f"{k}({v.get('type','string')}: {v.get('description','')})" for k, v in params.items()])
-            tool_descriptions.append(f"- {name}: {desc} 参数: {param_str}")
+            param_str = "; ".join([f"<parameter={k}>{v.get('type','string')}: {v.get('description','')}</parameter>" for k, v in params.items()])
+            tool_descriptions.append(f"- {name}: {desc} 参数: {param_str}" if param_str else f"- {name}: {desc}")
         if tool_descriptions:
-            tool_prompt = "可用的工具:\n" + "\n".join(tool_descriptions) + "\n当你需要使用工具时，输出格式: <tool call><function=工具名><parameter=参数名>值</parameter></function></tool call>"
+            tool_prompt = f"""当前时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+你有以下工具可用，请根据用户的问题自主选择调用：
+
+{chr(10).join(tool_descriptions)}
+
+当你需要使用工具时，必须严格按照以下格式输出（不要使用Markdown代码块）：
+
+<tool call><function=工具名>{chr(10).join([f'<parameter=参数名>值</parameter>' for _ in range(1)])}</function></tool call>
+
+示例:
+用户: "列出当前目录文件"
+你: <tool call><function=bash><parameter=command>ls -la</parameter><parameter=description>列出当前目录</parameter></function></tool call>
+
+用户: "现在几点？"
+你: <tool call><function=get_current_time><parameter>无需参数</parameter></function></tool call>
+
+输出时只输出工具调用即可，不需要额外文字解释。如果不需要使用工具，正常回复用户。"""
             query = f"{tool_prompt}\n\n{query}"
+            print(f"[工具] 已注入 {len(request.tools)} 个工具定义到提示词")
 
     # 判断是否启用深度思考
     thinking = bool(request.reasoning_effort)

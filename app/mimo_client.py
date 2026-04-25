@@ -128,8 +128,8 @@ class MimoClient:
 
         print(f"\n{'─'*60}")
         print(f"[请求] model={model} thinking={thinking}")
-        print(f"[请求] query={query[:200]}")
-        print(f"[请求] body={json.dumps(body, ensure_ascii=False)[:300]}")
+        print(f"[请求] query={query[:500]}")
+        print(f"[请求] body={json.dumps(body, ensure_ascii=False)[:500]}")
 
         async with httpx.AsyncClient(timeout=self.TIMEOUT) as client:
             response = await client.post(
@@ -193,8 +193,8 @@ class MimoClient:
 
         print(f"\n{'─'*60}")
         print(f"[流式请求] model={model} thinking={thinking}")
-        print(f"[流式请求] query={query[:200]}")
-        print(f"[流式请求] body={json.dumps(body, ensure_ascii=False)[:300]}")
+        print(f"[流式请求] query={query[:500]}")
+        print(f"[流式请求] body={json.dumps(body, ensure_ascii=False)[:500]}")
 
         async with httpx.AsyncClient(timeout=self.TIMEOUT) as client:
             async with client.stream(

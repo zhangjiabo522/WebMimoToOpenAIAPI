@@ -508,8 +508,8 @@ async def stream_response(client: MimoClient, query: str, thinking: bool, model:
     yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(role='assistant'))]).dict())}\n\n"
 
     buffer = ""
+    last_sent = ""
     in_think = False
-    sent_tool_calls = False
 
     try:
         async for sse_data in client.stream_api(query, thinking, model):
@@ -524,91 +524,72 @@ async def stream_response(client: MimoClient, query: str, thinking: bool, model:
             # 检查是否包含完整<tool call>标签
             cleaned, tool_calls = parse_tool_calls(text)
             if tool_calls:
-                # 发送tool_calls前积累的文本
-                if cleaned:
-                    chunk = OpenAIResponse(
-                        id=msg_id, object="chat.completion.chunk", created=int(time.time()),
-                        model=model,
-                        choices=[OpenAIChoice(index=0, delta=OpenAIDelta(content=cleaned), finish_reason=None)]
-                    )
-                    yield f"data: {json.dumps(chunk.dict())}\n\n"
-
-                # 发送tool_calls
+                remaining = cleaned[len(last_sent):] if len(last_sent) < len(cleaned) else ""
+                if remaining:
+                    yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(content=remaining))]).dict())}\n\n"
                 for tc in tool_calls:
-                    tc_chunk = OpenAIResponse(
-                        id=msg_id, object="chat.completion.chunk", created=int(time.time()),
-                        model=model,
-                        choices=[OpenAIChoice(index=0, delta=OpenAIDelta(tool_calls=[tc]))]
-                    )
-                    yield f"data: {json.dumps(tc_chunk.dict())}\n\n"
-
-                # finish with tool_calls reason
-                finish = OpenAIResponse(
-                    id=msg_id, object="chat.completion.chunk", created=int(time.time()),
-                    model=model,
-                    choices=[OpenAIChoice(index=0, delta=OpenAIDelta(), finish_reason="tool_calls")]
-                )
-                yield f"data: {json.dumps(finish.dict())}\n\n"
+                    yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(tool_calls=[tc]))]).dict())}\n\n"
+                yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(), finish_reason='tool_calls')]).dict())}\n\n"
                 yield "data: [DONE]\n\n"
-
                 elapsed = time.time() - start_time
                 prompt_tokens = len(query.split())
                 tracker.record(prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, seconds=elapsed)
                 add_log("success", f"[{model}] tool_calls 输入:{prompt_tokens} 输出:{completion_tokens} 耗时:{elapsed:.1f}s")
                 return
 
-            # 没有tool call，正常处理think和文本
-            # 处理<think>标签
-            while True:
-                if not in_think:
-                    idx = text.find("<think>")
-                    if idx != -1:
-                        if idx > 0:
-                            chunk = OpenAIResponse(
-                                id=msg_id, object="chat.completion.chunk", created=int(time.time()),
-                                model=model,
-                                choices=[OpenAIChoice(index=0, delta=OpenAIDelta(content=text[:idx]))]
-                            )
-                            yield f"data: {json.dumps(chunk.dict())}\n\n"
-                        in_think = True
-                        text = text[idx + 7:]
-                        continue
+            # 处理think标签，只发送新增内容
+            new_text = text[len(last_sent):]
+            if not new_text:
+                continue
 
-                    safe = len(text) - 7
-                    if safe > 0:
-                        chunk = OpenAIResponse(
-                            id=msg_id, object="chat.completion.chunk", created=int(time.time()),
-                            model=model,
-                            choices=[OpenAIChoice(index=0, delta=OpenAIDelta(content=text[:safe]))]
-                        )
-                        yield f"data: {json.dumps(chunk.dict())}\n\n"
-                        text = text[safe:]
-                    break
+            if not in_think:
+                idx = new_text.find("<think>")
+                if idx != -1:
+                    if idx > 0:
+                        yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(content=new_text[:idx]))]).dict())}\n\n"
+                        last_sent += len(new_text[:idx])
+                    in_think = True
+                    last_sent += 7  # skip <think>
+                    continue
+                # 保留最后7个字符，其余发送
+                safe = len(new_text) - 7
+                if safe > 0:
+                    yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(content=new_text[:safe]))]).dict())}\n\n"
+                    last_sent += safe
+            else:
+                idx = new_text.find("</think>")
+                if idx != -1:
+                    if idx > 0:
+                        yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(reasoning=new_text[:idx]))]).dict())}\n\n"
+                        last_sent += len(new_text[:idx])
+                    # 跳过</think>本身
+                    last_sent += 8
+                    in_think = False
+                    continue
+                safe = len(new_text) - 8
+                if safe > 0:
+                    yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(reasoning=new_text[:safe]))]).dict())}\n\n"
+                    last_sent += safe
 
-                else:
-                    idx = text.find("</think>")
-                    if idx != -1:
-                        if idx > 0:
-                            chunk = OpenAIResponse(
-                                id=msg_id, object="chat.completion.chunk", created=int(time.time()),
-                                model=model,
-                                choices=[OpenAIChoice(index=0, delta=OpenAIDelta(reasoning=text[:idx]))]
-                            )
-                            yield f"data: {json.dumps(chunk.dict())}\n\n"
-                        in_think = False
-                        text = text[idx + 8:]
-                        continue
+        # 发送剩余文本（排除think标签内内容）
+        remaining = text[len(last_sent):]
+        if remaining and not in_think:
+            yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(content=remaining))]).dict())}\n\n"
 
-                    safe = len(text) - 8
-                    if safe > 0:
-                        chunk = OpenAIResponse(
-                            id=msg_id, object="chat.completion.chunk", created=int(time.time()),
-                            model=model,
-                            choices=[OpenAIChoice(index=0, delta=OpenAIDelta(reasoning=text[:safe]))]
-                        )
-                        yield f"data: {json.dumps(chunk.dict())}\n\n"
-                        text = text[safe:]
-                    break
+        # 发送结束标记
+        yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(), finish_reason='stop')]).dict())}\n\n"
+        yield "data: [DONE]\n\n"
+
+        # 记录使用情况
+        elapsed = time.time() - start_time
+        prompt_tokens = len(query.split())
+        tracker.record(prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, seconds=elapsed)
+        add_log("success", f"[{model}] 输入:{prompt_tokens} 输出:{completion_tokens} 耗时:{elapsed:.1f}s")
+
+    except Exception as e:
+        error_chunk = {"error": {"message": str(e)}}
+        yield f"data: {json.dumps(error_chunk)}\n\n"
+        add_log("error", f"流式错误: {str(e)[:100]}")
 
         # 发送剩余的文本
         if text:

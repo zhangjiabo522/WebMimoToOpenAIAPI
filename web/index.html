@@ -492,13 +492,11 @@
             try {
                 const res = await fetch('/v1/chat/completions', {
                     method: 'POST',
-                    headers: {'Content-Type':'application/json', 'Authorization':'Bearer sk-default'},
+                    headers: {'Content-Type':'application/json', 'Authorization':'Bearer ' + (cfg.api_keys || 'sk-default').split(',')[0].trim()},
                     body: JSON.stringify({
                         model: model,
                         messages: [{'role':'user','content':msg}],
-                        stream: true,
-                        reasoning_effort: thinking || undefined,
-                        tools: search ? [{'type':'web_search'}] : undefined
+                        stream: true
                     }),
                     signal: chatAbortController.signal
                 });

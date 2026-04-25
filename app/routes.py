@@ -108,7 +108,6 @@ async def chat_completions(
 如需调用功能，输出:
 <tool call><function=功能名><parameter=参数名>参数值</parameter></function></tool call>"""
             query = f"{tool_prompt}\n\n{query}"
-            print(f"[工具] 已注入 {len(request.tools)} 个工具定义到提示词")
 
     # 判断是否启用深度思考
     thinking = bool(request.reasoning_effort)

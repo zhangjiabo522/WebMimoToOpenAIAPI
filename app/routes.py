@@ -90,6 +90,20 @@ async def chat_completions(
     if system_prompt:
         query = f"{system_prompt}\n\n{query}"
 
+    # 注入 tools 定义到提示词
+    if request.tools:
+        tool_descriptions = []
+        for t in request.tools:
+            func = t.get("function", {})
+            name = func.get("name", "unknown")
+            desc = func.get("description", "")
+            params = func.get("parameters", {}).get("properties", {})
+            param_str = ", ".join([f"{k}({v.get('type','string')}: {v.get('description','')})" for k, v in params.items()])
+            tool_descriptions.append(f"- {name}: {desc} 参数: {param_str}")
+        if tool_descriptions:
+            tool_prompt = "可用的工具:\n" + "\n".join(tool_descriptions) + "\n当你需要使用工具时，输出格式: <tool call><function=工具名><parameter=参数名>值</parameter></function></tool call>"
+            query = f"{tool_prompt}\n\n{query}"
+
     # 判断是否启用深度思考
     thinking = bool(request.reasoning_effort)
 

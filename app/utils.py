@@ -44,7 +44,7 @@ def parse_curl(curl_command: str) -> Optional[MimoAccount]:
     if not st_match:
         st_match = re.search(r'serviceToken=([^\s;]+)', cookies)
     if st_match:
-        account['service_token'] = st_match.group(1).strip()
+        account['service_token'] = st_match.group(1).strip().strip('"')
 
     # 提取userId
     uid_match = re.search(r'userId=(\d+)', cookies)
@@ -56,7 +56,7 @@ def parse_curl(curl_command: str) -> Optional[MimoAccount]:
     if not ph_match:
         ph_match = re.search(r'xiaomichatbot_ph=([^\s;]+)', cookies)
     if ph_match:
-        account['xiaomichatbot_ph'] = ph_match.group(1).strip()
+        account['xiaomichatbot_ph'] = ph_match.group(1).strip().strip('"')
 
     if not account['service_token']:
         return None

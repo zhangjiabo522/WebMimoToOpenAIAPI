@@ -123,7 +123,13 @@ class MimoClient:
 
     async def call_api(self, query: str, thinking: bool = False, model: str = "mimo-v2.5-pro") -> Tuple[str, str, dict]:
         """调用Mimo API（非流式）"""
+        import json
         body = self._create_request_body(query, thinking, model)
+
+        print(f"\n{'─'*60}")
+        print(f"[请求] model={model} thinking={thinking}")
+        print(f"[请求] query={query[:200]}")
+        print(f"[请求] body={json.dumps(body, ensure_ascii=False)[:300]}")
 
         async with httpx.AsyncClient(timeout=self.TIMEOUT) as client:
             response = await client.post(
@@ -133,6 +139,7 @@ class MimoClient:
                 cookies=self._create_cookies(),
                 json=body
             )
+            print(f"[响应] status={response.status_code}")
             if response.status_code == 401:
                 raise Exception("token已过期，请重新获取cookie")
             if response.status_code == 403:
@@ -172,11 +179,22 @@ class MimoClient:
             full_text = "".join(result)
             content, think_content = self._parse_think_tags(full_text)
 
+            print(f"[回复] content={content[:300]}")
+            if think_content:
+                print(f"[思考] {think_content[:200]}")
+            print(f"{'─'*60}\n")
+
             return content, think_content, usage
 
     async def stream_api(self, query: str, thinking: bool = False, model: str = "mimo-v2.5-pro") -> AsyncIterator[dict]:
         """调用Mimo API（流式）"""
+        import json
         body = self._create_request_body(query, thinking, model)
+
+        print(f"\n{'─'*60}")
+        print(f"[流式请求] model={model} thinking={thinking}")
+        print(f"[流式请求] query={query[:200]}")
+        print(f"[流式请求] body={json.dumps(body, ensure_ascii=False)[:300]}")
 
         async with httpx.AsyncClient(timeout=self.TIMEOUT) as client:
             async with client.stream(
@@ -187,6 +205,7 @@ class MimoClient:
                 cookies=self._create_cookies(),
                 json=body
             ) as response:
+                print(f"[流式响应] status={response.status_code}")
                 if response.status_code == 401:
                     raise Exception("token已过期，请重新获取cookie")
                 if response.status_code == 403:
@@ -194,6 +213,7 @@ class MimoClient:
                 response.raise_for_status()
 
                 current_event = None
+                stream_content = []
                 async for raw_line in response.aiter_lines():
                     raw_line = raw_line.rstrip()
                     if raw_line.startswith("id:"):
@@ -209,10 +229,13 @@ class MimoClient:
                         try:
                             sse_data = json.loads(data)
                             if sse_data.get("type") == "text" and sse_data.get("content"):
+                                stream_content.append(sse_data.get("content", ""))
                                 yield sse_data
                         except json.JSONDecodeError:
                             continue
                     current_event = None
+                print(f"[流式回复] {''.join(stream_content).replace(chr(0),'')[:300]}")
+                print(f"{'─'*60}\n")
 
     @staticmethod
     def _parse_think_tags(text: str) -> Tuple[str, str]:

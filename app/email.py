@@ -130,6 +130,7 @@ class AccountChecker:
     
     def _check_accounts(self):
         """检测所有账号"""
+        import asyncio
         from .mimo_client import MimoClient
         
         accounts = config_manager.get_accounts()
@@ -139,22 +140,40 @@ class AccountChecker:
         expired = []
         valid = []
         
-        for acc in accounts:
-            # 查找对应的 MimoAccount 对象
-            mimo_acc = None
-            for ma in config_manager.config.mimo_accounts:
-                if ma.user_id == acc.get('user_id'):
-                    mimo_acc = ma
-                    break
-            
-            if mimo_acc:
-                client = MimoClient(mimo_acc)
-                success, msg = asyncio.run(client.test_connection())
-                
-                if success:
-                    valid.append(acc.get('user_id', 'unknown'))
-                else:
-                    expired.append((acc.get('user_id', 'unknown'), msg))
+        # 在新线程中运行异步检测
+        def run_async_check():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                for acc in accounts:
+                    mimo_acc = None
+                    for ma in config_manager.config.mimo_accounts:
+                        if ma.user_id == acc.get('user_id'):
+                            mimo_acc = ma
+                            break
+                    
+                    if mimo_acc:
+                        client = MimoClient(mimo_acc)
+                        success, msg = loop.run_until_complete(client.test_connection())
+                        
+                        if success:
+                            valid.append(acc.get('user_id', 'unknown'))
+                        else:
+                            expired.append((acc.get('user_id', 'unknown'), msg))
+            finally:
+                loop.close()
+        
+        # 在线程中运行
+        thread = threading.Thread(target=run_async_check, daemon=True)
+        thread.start()
+        thread.join(timeout=60)
+        
+        # 更新检测结果
+        now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        if expired:
+            result = f"过期: {', '.join([e[0] for e in expired])}"
+        else:
+            result = "全部正常" if valid else "无账号"
         
         # 更新检测结果
         now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')

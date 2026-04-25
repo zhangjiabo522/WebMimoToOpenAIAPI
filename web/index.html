@@ -321,7 +321,7 @@
         function renderAccounts() {
             const d = document.getElementById('accounts');
             if (cfg.mimo_accounts?.length) {
-                d.innerHTML = cfg.mimo_accounts.map((a, i) => '<div class="account"><span class="account-id">ID: ' + a.user_id + '</span><button class="btn-danger" onclick="del(' + i + ')">删除</button></div>').join('');
+                d.innerHTML = cfg.mimo_accounts.map((a, i) => '<div class="account"><span class="account-id">ID: ' + a.user_id + '</span><div><button onclick="testAcc(\'' + a.user_id + '\')">测试</button><button class="btn-danger" onclick="del(' + i + ')">删除</button></div></div>').join('');
             } else {
                 d.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:20px">暂无账号</div>';
             }
@@ -355,6 +355,20 @@
             cfg.mimo_accounts.splice(i, 1);
             await fetch('/api/config', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(cfg) });
             renderAccounts();
+        }
+        
+        async function testAcc(userId) {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = '测试中...';
+            const res = await (await fetch('/api/test-account/' + userId, { method: 'POST' })).json();
+            if (res.status === 'ok') {
+                alert('成功: ' + res.message);
+            } else {
+                alert('失败: ' + res.message);
+            }
+            btn.disabled = false;
+            btn.textContent = '测试';
         }
         
         async function resetUsage() {

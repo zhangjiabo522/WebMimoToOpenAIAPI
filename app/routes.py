@@ -682,6 +682,30 @@ async def stop_checker():
     return {"status": "ok"}
 
 
+@router.post("/api/test-account/{user_id}")
+async def test_account(user_id: str):
+    """测试单个账号"""
+    import asyncio
+    from .mimo_client import MimoClient
+    
+    mimo_acc = None
+    for acc in config_manager.config.mimo_accounts:
+        if acc.user_id == user_id:
+            mimo_acc = acc
+            break
+    
+    if not mimo_acc:
+        return {"status": "error", "message": "账号不存在"}
+    
+    client = MimoClient(mimo_acc)
+    success, msg = await client.test_connection()
+    
+    if success:
+        return {"status": "ok", "message": msg}
+    else:
+        return {"status": "error", "message": msg}
+
+
 @router.post("/api/parse-curl")
 async def parse_curl_command(request: ParseCurlRequest):
     """解析cURL命令"""

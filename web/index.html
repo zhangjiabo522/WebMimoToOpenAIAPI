@@ -587,6 +587,34 @@
         
         load();
         loadChatModels();
+        
+        function updateSelf() {
+            if (!confirm('确定要更新到最新版本？服务将自动重启。')) return;
+            const btn = document.getElementById('updateBtn');
+            btn.textContent = '更新中...';
+            fetch('/api/update', { method: 'POST' }).then(r=>r.json()).then(d=>{
+                if (d.success) {
+                    alert('更新成功，服务已重启');
+                } else {
+                    alert('更新失败: ' + (d.error || '未知错误'));
+                    btn.textContent = '一键更新';
+                }
+            }).catch(e=>{
+                alert('更新失败: ' + e.message);
+                btn.textContent = '一键更新';
+            });
+        }
     </script>
+    
+    <div class="footnote">
+        <span id="versionTag">v1.2.3</span>
+        <a href="#" onclick="updateSelf()" id="updateBtn">一键更新</a>
+    </div>
+
+    <style>
+    .footnote { position: fixed; bottom: 8px; right: 12px; font-size: 12px; color: var(--text-muted); display: flex; gap: 8px; align-items: center; z-index: 999; }
+    .footnote a { color: var(--primary); cursor: pointer; text-decoration: none; }
+    .footnote a:hover { text-decoration: underline; }
+    </style>
 </body>
 </html>

@@ -1,4 +1,4 @@
-# MiMo2API Project Summary
+# WebMimoToOpenAIAPI
 
 ## Goal
 - Build a Xiaomi MiMo AI to OpenAI compatible API proxy with management UI, tool_calls support, and clean streaming output

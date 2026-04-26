@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "╔══════════════════════════════════════════════════════════╗"
-echo "║                    MiMo2API                              ║"
+echo "║               WebMimoToOpenAIAPI                          ║"
 echo "║          小米 MiMo 模型 OpenAI 兼容 API                   ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 
@@ -28,11 +28,11 @@ pip install -r requirements.txt -q
 PORT=${PORT:-9999}
 echo "启动服务在端口 $PORT..."
 nohup python3 main.py > nohup.out 2>&1 &
-echo $! > mimo2api.pid
+echo $! > webmimo.pid
 
 sleep 2
 
-if ps -p $(cat mimo2api.pid) > /dev/null 2>&1; then
+if ps -p $(cat webmimo.pid) > /dev/null 2>&1; then
     echo "服务已启动: http://localhost:$PORT"
     echo "管理界面: http://localhost:$PORT"
     echo "API端点: http://localhost:$PORT/v1/chat/completions"

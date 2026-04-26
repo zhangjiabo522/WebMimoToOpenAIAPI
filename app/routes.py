@@ -512,8 +512,8 @@ async def stream_response(client: MimoClient, query: str, thinking: bool, model:
     msg_id = f"chatcmpl-{uuid.uuid4().hex[:24]}"
     start_time = time.time()
     completion_tokens = 0
-    open_tag = ""
-    close_tag = ""
+    open_tag = "<thinking>"
+    close_tag = "</thinking>"
     has_tools = tools is not None and len(tools) > 0
 
     yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(role='assistant'))]).dict())}\n\n"
@@ -595,6 +595,36 @@ async def stream_response(client: MimoClient, query: str, thinking: bool, model:
                             sent_think_open = False
                         buffer = buffer[tend + 8:] if tend >= 0 else buffer
                     else:
+                        # 没有 think 标签 —— 检查 XML <tool_call>
+                        if has_tools:
+                            tc_start = buffer.find("<tool_call>")
+                            if tc_start >= 0:
+                                tc_end = buffer.find("</tool_call>")
+                                if tc_end >= 0:
+                                    # 完整的 XML tool_call
+                                    tc_end += len("</tool_call>")
+                                    prefix = buffer[:tc_start].replace('\x00', '').strip()
+                                    if prefix:
+                                        yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(content=prefix))]).dict())}\n\n"
+                                    xml_block = buffer[tc_start:tc_end]
+                                    tool_names = get_tool_names(tools)
+                                    tool_call, _ = extract_tool_call(xml_block, tool_names)
+                                    if tool_call:
+                                        yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(tool_calls=[tool_call]))]).dict())}\n\n"
+                                        yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(), finish_reason='tool_calls')]).dict())}\n\n"
+                                        has_tools = False  # 防止末尾重复发送
+                                    buffer = buffer[tc_end:]
+                                    if buffer.strip():
+                                        continue
+                                    buffer = ""
+                                    break
+                                else:
+                                    # 不完整的 XML，等待更多数据
+                                    prefix = buffer[:tc_start].replace('\x00', '').strip()
+                                    if prefix:
+                                        yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(content=prefix))]).dict())}\n\n"
+                                    buffer = buffer[tc_start:]
+                                    break
                         resp = buffer.replace('\x00', '').strip()
                         if resp:
                             yield f"data: {json.dumps(OpenAIResponse(id=msg_id, object='chat.completion.chunk', created=int(time.time()), model=model, choices=[OpenAIChoice(index=0, delta=OpenAIDelta(content=resp))]).dict())}\n\n"
